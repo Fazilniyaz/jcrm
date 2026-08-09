@@ -1,0 +1,252 @@
+@import "tailwindcss";
+
+/*
+ * Two layers here, kept deliberately separate:
+ *
+ * 1. LAYOUT/NEUTRALS — transcribed from the Valex Bootstrap 5 template
+ *    (assets/css/styles.min.css): surfaces, borders, radii, menu and header
+ *    chrome. These are the template's own values; don't "improve" them.
+ * 2. BRAND — the Jadvix palette, which replaces Valex's stock hues entirely.
+ *
+ * So the geometry stays Valex, the colour is Jadvix.
+ */
+
+/* dark mode is driven by <html data-theme-mode="dark">, same as the template */
+@custom-variant dark (&:where([data-theme-mode="dark"], [data-theme-mode="dark"] *));
+
+:root {
+  /*
+   * Jadvix brand palette, taken from public/jadvix-logo.svg:
+   *   blue #4599d3 · orange #f05623 · red #e01e26 · black #040707
+   *
+   * The logo blue and orange are too light to carry white text or small
+   * type (3.11:1 and 3.47:1 on white — both below the 4.5:1 AA floor), so
+   * each has a hue-matched darker shade for interactive/text use. The raw
+   * logo colours stay in charts, gradients and large fills where the 3:1
+   * non-text threshold applies.
+   */
+  --brand-blue-rgb: 69, 153, 211; /* #4599d3 logo blue */
+  --brand-orange-rgb: 240, 86, 35; /* #f05623 logo orange */
+  --brand-red-rgb: 224, 30, 38; /* #e01e26 logo red */
+  --brand-ink-rgb: 4, 7, 7; /* #040707 wordmark */
+
+  --primary-rgb: 43, 124, 181; /* #2b7cb5 — 4.5:1 both as text and behind white */
+  --secondary-rgb: 95, 109, 136;
+  --warning-rgb: 215, 65, 15; /* #d7410f — text-safe orange */
+  --danger-rgb: 224, 30, 38; /* #e01e26 — already 4.79:1 on white */
+  /* The identity has no green, so positive states use the brand blue family;
+     the Paid / Pending / Failed trio reads as blue / orange / red. */
+  --success-rgb: 43, 124, 181;
+  --info-rgb: 69, 153, 211;
+  --orange-rgb: 240, 86, 35;
+  --light-rgb: 240, 241, 246;
+  --dark-rgb: 59, 72, 99;
+  --pink-rgb: 241, 0, 117;
+  --teal-rgb: 0, 204, 204;
+  --purple-rgb: 72, 0, 201;
+  --body-bg-rgb: 236, 240, 250;
+  --body-bg-rgb2: 236, 240, 250;
+
+  --default-body-bg-color: rgb(var(--body-bg-rgb));
+  --default-text-color: #031b4e;
+  --default-border: #eae8f1;
+  --default-background: #f8fafd;
+
+  --menu-bg: #fff;
+  --menu-prime-color: #5b6e88;
+  --menu-category-color: #2c364c;
+  --menu-border-color: #eae8f1;
+
+  --header-bg: #fff;
+  --header-prime-color: #71829b;
+  --header-border-color: #eae8f1;
+
+  --custom-white: #fff;
+  --custom-black: #000;
+  --custom-bg-color: #ecf0fa;
+
+  --bootstrap-card-border: #eae8f1;
+  --list-hover-focus-bg: #ecf0fa;
+  --text-muted: #7987a1;
+  --input-border: #e9edf6;
+  --form-control-bg: #ffffff;
+  --card-title-color: #242f48;
+  --card-box-shadow: -8px 12px 18px 0 #dadee8;
+  --pop-box-shadow: 0 8px 24px 0 rgba(4, 7, 7, 0.12);
+
+  --gray-1: #ecf0fa;
+  --gray-2: #dde2ef;
+  --gray-3: #d0d7e8;
+  --gray-4: #b9c2d8;
+  --gray-5: #949eb7;
+  --gray-6: #737f9e;
+  --gray-7: #4d5875;
+  --gray-8: #364261;
+  --gray-9: #242f48;
+}
+
+[data-theme-mode="dark"] {
+  --body-bg-rgb: 25, 32, 47;
+  --body-bg-rgb2: 36, 43, 57;
+  --light-rgb: 33, 41, 59;
+  --dark-rgb: 240, 245, 248;
+
+  /* On the dark surface the contrast problem inverts: the logo blue and
+     orange now clear 4.5:1 unaided, while the red drops to 3.40:1. */
+  --primary-rgb: 69, 153, 211; /* #4599d3 — 5.24:1 on #19202f */
+  --success-rgb: 69, 153, 211;
+  --warning-rgb: 240, 86, 35; /* #f05623 — 4.70:1 */
+  --danger-rgb: 232, 83, 89; /* #e85359 — lightened to 4.51:1 */
+
+  --default-body-bg-color: rgb(var(--body-bg-rgb2));
+  --default-text-color: rgba(255, 255, 255, 0.85);
+  --default-border: rgba(255, 255, 255, 0.1);
+  --default-background: rgba(255, 255, 255, 0.05);
+
+  --menu-bg: rgb(var(--body-bg-rgb));
+  --menu-prime-color: rgba(255, 255, 255, 0.6);
+  --menu-category-color: rgba(255, 255, 255, 0.6);
+  --menu-border-color: rgba(255, 255, 255, 0.1);
+
+  --header-bg: rgb(var(--body-bg-rgb));
+  --header-prime-color: rgba(255, 255, 255, 0.6);
+  --header-border-color: rgba(255, 255, 255, 0.1);
+
+  --custom-white: rgb(var(--body-bg-rgb));
+  --custom-black: #fff;
+  --custom-bg-color: rgba(255, 255, 255, 0.05);
+
+  --bootstrap-card-border: rgba(255, 255, 255, 0.1);
+  --list-hover-focus-bg: rgba(255, 255, 255, 0.1);
+  --text-muted: rgba(255, 255, 255, 0.6);
+  --input-border: rgba(255, 255, 255, 0.1);
+  --form-control-bg: #141a26;
+  --card-title-color: #ffffff;
+  --card-box-shadow: -8px 12px 18px 0 rgba(0, 0, 0, 0.1);
+  --pop-box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.45);
+
+  --gray-1: rgba(255, 255, 255, 0.1);
+  --gray-2: rgba(255, 255, 255, 0.2);
+  --gray-3: rgba(255, 255, 255, 0.3);
+  --gray-4: rgba(255, 255, 255, 0.4);
+  --gray-5: rgba(255, 255, 255, 0.5);
+  --gray-6: rgba(255, 255, 255, 0.6);
+  --gray-7: rgba(255, 255, 255, 0.7);
+  --gray-8: rgba(255, 255, 255, 0.8);
+  --gray-9: rgba(255, 255, 255, 0.9);
+}
+
+@theme inline {
+  --color-brand-blue: rgb(var(--brand-blue-rgb));
+  --color-brand-orange: rgb(var(--brand-orange-rgb));
+  --color-brand-red: rgb(var(--brand-red-rgb));
+  --color-brand-ink: rgb(var(--brand-ink-rgb));
+
+  --color-primary: rgb(var(--primary-rgb));
+  --color-secondary: rgb(var(--secondary-rgb));
+  --color-success: rgb(var(--success-rgb));
+  --color-warning: rgb(var(--warning-rgb));
+  --color-danger: rgb(var(--danger-rgb));
+  --color-info: rgb(var(--info-rgb));
+  --color-orange: rgb(var(--orange-rgb));
+  --color-pink: rgb(var(--pink-rgb));
+  --color-teal: rgb(var(--teal-rgb));
+  --color-purple: rgb(var(--purple-rgb));
+  --color-light: rgb(var(--light-rgb));
+  --color-dark: rgb(var(--dark-rgb));
+
+  --color-body: var(--default-body-bg-color);
+  --color-card: var(--custom-white);
+  --color-heading: var(--card-title-color);
+  --color-text: var(--default-text-color);
+  --color-muted: var(--text-muted);
+  --color-line: var(--default-border);
+  --color-menu: var(--menu-bg);
+  --color-menu-text: var(--menu-prime-color);
+  --color-menu-category: var(--menu-category-color);
+  --color-header: var(--header-bg);
+  --color-subtle: var(--custom-bg-color);
+  --color-hover: var(--list-hover-focus-bg);
+  --color-input-border: var(--input-border);
+  --color-form-bg: var(--form-control-bg);
+
+  /* Bootstrap's radius scale — Valex leans on the small end */
+  --radius-sm: 0.1875rem;
+  --radius-DEFAULT: 0.25rem;
+  --radius-card: 0.375rem;
+  --radius-avatar: 0.3rem;
+
+  --shadow-card: var(--card-box-shadow);
+  /* Dropdowns and popovers sit above the page rather than in it, so they get a
+     tighter, more vertical shadow than the cards do. */
+  --shadow-pop: var(--pop-box-shadow);
+
+  --font-sans: var(--font-roboto), "Roboto", sans-serif;
+
+  --spacing-sidebar: 15rem;
+  /* squeezed sidebar — icon-only rail, matching Valex's 5rem icon-overlay */
+  --spacing-rail: 5rem;
+  --spacing-header: 3.75rem;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.5;
+  background-color: var(--default-body-bg-color);
+  color: var(--default-text-color);
+  overflow-x: clip;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  border-color: var(--default-border);
+}
+
+/* ---- Sales-card gradients, built only from the Jadvix hues ----
+   Each runs deep -> light on a single brand hue so the four cards read as
+   one family rather than four unrelated colours. */
+.bg-brand-blue-gradient {
+  background: linear-gradient(120deg, #1f6ea8 0, #4599d3 100%);
+}
+.bg-brand-orange-gradient {
+  background: linear-gradient(120deg, #d7410f 0, #f7913f 100%);
+}
+/* Deep navy pulled toward the wordmark black, so card 3 doesn't read as a
+   second copy of card 1. */
+.bg-brand-deep-gradient {
+  background: linear-gradient(120deg, #10293b 0, #2b7cb5 100%);
+}
+/* On dark that navy floor falls below the body colour and the card reads as a
+   hole in the row, so lift the whole ramp. */
+[data-theme-mode="dark"] .bg-brand-deep-gradient {
+  background: linear-gradient(120deg, #1a5680 0, #55a5da 100%);
+}
+.bg-brand-red-gradient {
+  background: linear-gradient(120deg, #b81620 0, #e85359 100%);
+}
+
+/* text that stays white regardless of theme (on gradient cards) */
+.text-fixed-white {
+  color: #fff;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--gray-3);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
