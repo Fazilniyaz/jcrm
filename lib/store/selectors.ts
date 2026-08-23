@@ -21,6 +21,7 @@ import {
   type Subtask,
   type Task,
   type TaskStatus,
+  TASK_STATUSES,
 } from "./types";
 
 /*
@@ -257,7 +258,9 @@ export function projectProgress(state: StoreState, projectId: string): number {
 }
 
 export function statusCounts(tasks: Task[]): Record<TaskStatus, number> {
-  const out = { New: 0, Backlog: 0, "In Progress": 0, "In Review": 0, Done: 0 };
+  // Seeded from the definitions rather than a literal, so a status added there
+  // starts counting here without this function being touched.
+  const out = Object.fromEntries(TASK_STATUSES.map((s) => [s, 0])) as Record<TaskStatus, number>;
   for (const t of tasks) out[t.status] += 1;
   return out;
 }

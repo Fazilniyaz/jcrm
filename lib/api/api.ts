@@ -23,6 +23,7 @@ import type {
   ProjectInvitation,
   SecretEntry,
   Task,
+  TaskAttachment,
   Workspace,
 } from "./types";
 
@@ -38,6 +39,17 @@ import type {
 
 type Envelope<T> = { data: T; meta?: Record<string, unknown> };
 const unwrap = <T,>(response: Envelope<T>): T => response.data;
+
+/**
+ * The cache-tag id for one attachment list.
+ *
+ * Task-level files and each subtask's files are distinct lists behind the same
+ * route, so they need distinct tags — otherwise a subtask upload would refetch
+ * the task's own list and vice versa. Task-level keeps the bare task id, so the
+ * tag is byte-for-byte what it was before subtasks had files.
+ */
+const attachmentBucket = (taskId: string, subtaskId?: string): string =>
+  subtaskId ? `${taskId}::${subtaskId}` : taskId;
 
 /*
  * Put a freshly created row into its list cache straight away.
@@ -85,6 +97,92 @@ function insertOnCreate<Result, Row extends { id: string }>(
   };
 }
 
+/*
+ * Attachment cache surgery.
+ *
+ * Both of these live OUT here, next to `insertOnCreate`, and take a loosely
+ * typed `dispatch` for the same reason it does: writing them inline inside
+ * `endpoints` makes them reference `api` while `api`'s own type is still being
+ * inferred, and TypeScript resolves that circle by widening the whole slice to
+ * `any` — which silently un-types every hook in the app rather than erroring
+ * anywhere near the cause.
+ */
+
+type LifecycleApi = {
+  dispatch: (action: unknown) => { undo: () => void };
+  queryFulfilled: PromiseLike<{ data: unknown }>;
+};
+
+/**
+ * Show the file the moment the upload answers, not a round trip later.
+ *
+ * `invalidatesTags` alone is correct but not immediate: it marks the list stale
+ * and the row only appears once the refetch lands. Against a database this far
+ * away that refetch is seconds, so a file someone just watched upload was still
+ * missing from the list underneath it — which reads as "nothing happened", and
+ * the reflex is to reload the page. The server already returned the created
+ * row; this puts it straight in.
+ */
+async function insertAttachmentOnUpload(
+  { taskId, subtaskId }: { taskId: string; subtaskId?: string },
+  { dispatch, queryFulfilled }: LifecycleApi,
+) {
+  try {
+    const { data } = await queryFulfilled;
+    const created = data as TaskAttachment;
+    dispatch(
+      api.util.updateQueryData(
+        "listTaskAttachments",
+        { taskId, subtaskId },
+        (draft: TaskAttachment[]) => {
+          // The refetch can land first on a fast connection; don't double-add.
+          if (draft.some((row) => row.id === created.id)) return;
+          // Head, because the list is newest-first.
+          draft.unshift(created);
+        },
+      ),
+    );
+  } catch {
+    // The upload failed, so the list never changed and there is nothing to
+    // undo. The component shows the error.
+  }
+}
+
+/**
+ * Remove the row first; put it back if the server disagrees.
+ *
+ * Unlike the upload there is nothing to wait for — the outcome is known the
+ * moment the request is sent, and a delete that takes four seconds to visibly
+ * happen is four seconds of someone pressing the button again. `undo()`
+ * restores the exact previous list on failure, so a refused delete (someone
+ * else's file) puts the row back rather than leaving the screen lying about
+ * what the server holds.
+ */
+async function dropAttachmentOnDelete(
+  {
+    taskId,
+    attachmentId,
+    subtaskId,
+  }: { taskId: string; attachmentId: string; subtaskId?: string },
+  { dispatch, queryFulfilled }: LifecycleApi,
+) {
+  const undo = dispatch(
+    api.util.updateQueryData(
+      "listTaskAttachments",
+      { taskId, subtaskId },
+      (draft: TaskAttachment[]) => {
+        const at = draft.findIndex((row) => row.id === attachmentId);
+        if (at !== -1) draft.splice(at, 1);
+      },
+    ),
+  );
+  try {
+    await queryFulfilled;
+  } catch {
+    undo.undo();
+  }
+}
+
 export const api = createApi({
   reducerPath: "jadvixApi",
   baseQuery: baseQueryWithReauth,
@@ -112,6 +210,7 @@ export const api = createApi({
     "ProjectInvitations",
     "Task",
     "TaskList",
+    "Attachments",
     "Secrets",
     "Profile",
     "ModuleAccess",
@@ -579,6 +678,88 @@ export const api = createApi({
       ],
     }),
 
+    /* -------------------------------------------------- attachments -- */
+
+    listTaskAttachments: build.query<TaskAttachment[], { taskId: string; subtaskId?: string }>({
+      query: ({ taskId, subtaskId }) =>
+        `/tasks/${taskId}/attachments${subtaskId ? `?subtaskId=${encodeURIComponent(subtaskId)}` : ""}`,
+      transformResponse: unwrap,
+      // Task-level and each subtask's files are separate cache entries, so a
+      // subtask upload never marks the task's own list stale and vice versa.
+      providesTags: (_r, _e, { taskId, subtaskId }) => [
+        { type: "Attachments", id: attachmentBucket(taskId, subtaskId) },
+      ],
+    }),
+
+    /*
+     * Upload.
+     *
+     * A FormData body, handed to fetchBaseQuery as-is. It must NOT be given a
+     * Content-Type: the browser sets `multipart/form-data` along with the
+     * boundary it generated, and any value set here would arrive without that
+     * boundary and be unparseable at the other end. `subtaskId` rides on the
+     * query string, not a form field — the streaming parser never reads fields.
+     */
+    uploadTaskAttachment: build.mutation<
+      TaskAttachment,
+      { taskId: string; file: File; subtaskId?: string }
+    >({
+      query: ({ taskId, file, subtaskId }) => {
+        const form = new FormData();
+        form.append("file", file);
+        return {
+          url: `/tasks/${taskId}/attachments${subtaskId ? `?subtaskId=${encodeURIComponent(subtaskId)}` : ""}`,
+          method: "POST",
+          body: form,
+        };
+      },
+      transformResponse: unwrap,
+      /*
+       * Show the file the moment the upload answers, not a round trip later.
+       *
+       * `invalidatesTags` alone is correct but not immediate: it marks the list
+       * stale and the row only appears once the refetch lands. Against a
+       * database this far away that refetch is seconds, so the file a person
+       * just watched upload was still missing from the list underneath it —
+       * which reads as "nothing happened", and the reflex is to reload. The
+       * server already returned the created row; this puts it straight in.
+       */
+      onQueryStarted: insertAttachmentOnUpload,
+      invalidatesTags: (_r, _e, { taskId, subtaskId }) => [
+        { type: "Attachments", id: attachmentBucket(taskId, subtaskId) },
+        // Attaching a file writes a line on the task's activity trail, so the
+        // task itself is stale even though none of its own fields moved.
+        { type: "Task", id: taskId },
+      ],
+    }),
+
+    deleteTaskAttachment: build.mutation<
+      void,
+      { taskId: string; attachmentId: string; subtaskId?: string }
+    >({
+      query: ({ taskId, attachmentId }) => ({
+        url: `/tasks/${taskId}/attachments/${attachmentId}`,
+        method: "DELETE",
+      }),
+      /*
+       * Remove the row first, put it back if the server disagrees.
+       *
+       * Unlike the upload there is nothing to wait for — the outcome is known
+       * the moment the request is sent, and a delete that takes four seconds to
+       * visibly happen is four seconds of a person clicking the button again.
+       * `undo()` restores the exact previous list if the request fails, so a
+       * refused delete (someone else's file) puts the row back rather than
+       * leaving the UI lying about what the server holds.
+       */
+      onQueryStarted: dropAttachmentOnDelete,
+      invalidatesTags: (_r, _e, { taskId, subtaskId }) => [
+        { type: "Attachments", id: attachmentBucket(taskId, subtaskId) },
+        // The task's activity trail now records attachments, so the task the
+        // file hangs off is stale too.
+        { type: "Task", id: taskId },
+      ],
+    }),
+
     /* ----------------------------------------------------- settings -- */
 
     getProfile: build.query<Profile, void>({
@@ -723,4 +904,7 @@ export const {
   useMarkNotificationReadMutation,
   useMarkAllNotificationsReadMutation,
   useClearNotificationsMutation,
+  useListTaskAttachmentsQuery,
+  useUploadTaskAttachmentMutation,
+  useDeleteTaskAttachmentMutation,
 } = api;

@@ -135,7 +135,7 @@ export default function Dashboard() {
         <StatTile
           label="Open tasks"
           value={num(d.openTasks.length)}
-          hint={`${num(d.byStatus["In Review"] ?? 0)} awaiting review`}
+          hint={`${num(d.byStatus.Stuck ?? 0)} stuck`}
           t="orange"
           icon={ListChecks}
         />

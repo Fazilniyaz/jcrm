@@ -852,7 +852,7 @@ export function StoreProvider({
               ? t
               : {
                   ...t,
-                  status: sendBack ? "In Progress" : t.status,
+                  status: sendBack ? "Working on it" : t.status,
                   // Rejected lines go back to zero so there is something
                   // concrete to redo and the task's completion reflects it.
                   checklist: sendBack

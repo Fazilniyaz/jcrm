@@ -9,10 +9,10 @@ import {
   MultiSelect,
   SelectInput,
   Span,
-  TextArea,
   TextInput,
   type Option,
 } from "@/components/ui/form";
+import { RichTextEditor, hasRichText } from "@/components/ui/RichText";
 import { useStore } from "@/lib/store/StoreProvider";
 import { initialsOf } from "@/lib/store/selectors";
 import { PROJECT_STATUSES, ROLE_TONE, type Project, type ProjectStatus } from "@/lib/store/types";
@@ -118,15 +118,24 @@ export default function ProjectForm({
     if (!draft.name.trim()) next.name = "Give the project a name.";
     if (!draft.code.trim()) next.code = "A project code is required.";
     if (!draft.client.trim()) next.client = "Every project belongs to a client account.";
-    if (!draft.description.trim()) next.description = "Describe what the project delivers.";
-    if (!draft.problemStatement.trim()) next.problemStatement = "State the problem being solved.";
-    if (!draft.solution.trim()) next.solution = "Outline the proposed solution.";
+    // `hasRichText`, not `.trim()`: an editor that has been typed into and then
+    // cleared holds "<p></p>", which is a non-empty string and no words at all.
+    if (!hasRichText(draft.description)) next.description = "Describe what the project delivers.";
+    if (!hasRichText(draft.problemStatement))
+      next.problemStatement = "State the problem being solved.";
+    if (!hasRichText(draft.solution)) next.solution = "Outline the proposed solution.";
     if (!draft.startDate) next.startDate = "Pick a start date.";
     if (draft.endDate && draft.startDate && draft.endDate < draft.startDate)
       next.endDate = "The end date can't fall before the start date.";
-    if (draft.assignedEmployees.length === 0)
-      next.assignedEmployees = "Assign at least one person.";
-    if (draft.reportTo.length === 0) next.reportTo = "Choose at least one reporting line.";
+    /*
+     * Staffing is deliberately NOT required.
+     *
+     * A project is routinely created before anyone is free to work on it — the
+     * client has signed, the dates are known, the team is not. Forcing a name
+     * into these two fields at create time only produces a wrong one that
+     * someone has to remember to correct. Both can be filled in by editing the
+     * project the moment the answer is real.
+     */
     setErrors(next);
     return Object.values(next).every((v) => !v);
   }
@@ -136,7 +145,8 @@ export default function ProjectForm({
     const payload = {
       code: draft.code.trim(),
       name: draft.name.trim(),
-      description: draft.description.trim(),
+      // Already HTML; the server sanitises it and collapses an empty document.
+      description: draft.description,
       client: draft.client.trim(),
       problemStatement: draft.problemStatement.trim(),
       solution: draft.solution.trim(),
@@ -218,10 +228,10 @@ export default function ProjectForm({
         />
 
         <Span>
-          <TextArea
+          <RichTextEditor
             label="Description"
             required
-            rows={3}
+            rows={4}
             value={draft.description}
             onChange={(v) => set("description", v)}
             placeholder="What this engagement delivers, in a sentence or two."
@@ -230,10 +240,10 @@ export default function ProjectForm({
         </Span>
 
         <Span>
-          <TextArea
+          <RichTextEditor
             label="Problem statement"
             required
-            rows={3}
+            rows={4}
             value={draft.problemStatement}
             onChange={(v) => set("problemStatement", v)}
             placeholder="What is broken today, and what it costs the client."
@@ -243,10 +253,10 @@ export default function ProjectForm({
         </Span>
 
         <Span>
-          <TextArea
+          <RichTextEditor
             label="Solution"
             required
-            rows={3}
+            rows={4}
             value={draft.solution}
             onChange={(v) => set("solution", v)}
             placeholder="The approach being taken, and how it addresses the problem."
@@ -274,11 +284,11 @@ export default function ProjectForm({
         <Span>
           <MultiSelect
             label="Assigned employees"
-            required
             value={draft.assignedEmployees}
             onChange={(v) => set("assignedEmployees", v)}
             options={peopleOptions}
             placeholder="Choose who works on this"
+            hint="Optional — you can staff the project later by editing it."
             error={errors.assignedEmployees}
           />
         </Span>
@@ -286,12 +296,11 @@ export default function ProjectForm({
         <Span>
           <MultiSelect
             label="Reports to"
-            required
             value={draft.reportTo}
             onChange={(v) => set("reportTo", v)}
             options={reportOptions}
             placeholder="Managers, team leaders and QC"
-            hint="Only managers, team leaders and QC can be a reporting line."
+            hint="Optional — only managers, team leaders and QC can be a reporting line."
             error={errors.reportTo}
           />
         </Span>

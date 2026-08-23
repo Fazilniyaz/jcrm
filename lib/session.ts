@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { getPortal, type Portal, type PortalSlug } from "./portals";
 
@@ -32,10 +33,16 @@ export async function destroySession() {
   store.delete(SESSION_COOKIE);
 }
 
-/** The portal the current visitor signed into, if any. */
-export async function getSession(): Promise<Portal | null> {
+/**
+ * The portal the current visitor signed into, if any.
+ *
+ * Cached per request: the layout, the page and any server action in the same
+ * render all ask for it, and there is no reason to re-read the cookie jar for
+ * each one.
+ */
+export const getSession = cache(async function getSession(): Promise<Portal | null> {
   const store = await cookies();
   const slug = store.get(SESSION_COOKIE)?.value;
   if (!slug) return null;
   return getPortal(slug) ?? null;
-}
+});

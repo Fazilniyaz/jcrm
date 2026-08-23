@@ -32,6 +32,7 @@ import { apiErrorMessage } from "@/lib/api/baseQuery";
 import { useSession } from "@/lib/api/session";
 import { formatDate, relativeTime } from "@/lib/store/selectors";
 import type { ProjectInvitation } from "@/lib/api/types";
+import { richTextToPlain } from "@/components/ui/RichText";
 
 /*
  * Requests — where a project invitation is answered.
@@ -222,7 +223,7 @@ export function Requests() {
 
                       {invitation.project.description && (
                         <p className="mt-2 line-clamp-2 text-[0.75rem] text-muted">
-                          {invitation.project.description}
+                          {richTextToPlain(invitation.project.description)}
                         </p>
                       )}
 

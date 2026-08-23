@@ -10,10 +10,10 @@ import {
   MultiSelect,
   SelectInput,
   Span,
-  TextArea,
   TextInput,
   type Option,
 } from "@/components/ui/form";
+import { RichTextEditor, hasRichText } from "@/components/ui/RichText";
 import { useStore } from "@/lib/store/StoreProvider";
 import { clampScore, initialsOf, itemPoints } from "@/lib/store/selectors";
 import {
@@ -61,7 +61,7 @@ function draftFrom(task: Task | undefined, nextCode: string): Draft {
     taskId: task?.taskId ?? nextCode,
     title: task?.title ?? "",
     description: task?.description ?? "",
-    status: task?.status ?? "New",
+    status: task?.status ?? "Not Started",
     priority: task?.priority ?? 3,
     projectIds: task?.projectIds ?? [],
     assignedTo: task?.assignedTo ?? [],
@@ -137,6 +137,18 @@ export default function TaskForm({
     [peopleOptions],
   );
 
+  /*
+   * A subtask can only be owned by someone assigned to the task.
+   *
+   * So the owner picker is the task's own assignees, never the whole roster —
+   * which is also what the API enforces, so a picker that offered more would
+   * only produce a 400 on save.
+   */
+  const ownerOptions: Option[] = useMemo(
+    () => peopleOptions.filter((o) => draft.assignedTo.includes(o.value)),
+    [peopleOptions, draft.assignedTo],
+  );
+
   const projectOptions: Option[] = useMemo(
     () => projects.map((p) => ({ value: p.id, label: p.name, hint: p.code })),
     [projects],
@@ -168,10 +180,12 @@ export default function TaskForm({
     const next: Record<string, string> = {};
     if (!draft.title.trim()) next.title = "Give the task a title.";
     if (!draft.taskId.trim()) next.taskId = "A task ID is required.";
-    if (!draft.description.trim()) next.description = "Describe what needs doing.";
+    // `hasRichText`, not `.trim()`: an editor that has been typed into and then
+    // cleared holds "<p></p>", which is a non-empty string and no words at all.
+    if (!hasRichText(draft.description)) next.description = "Describe what needs doing.";
     if (draft.projectIds.length === 0) next.projectIds = "Pick at least one project.";
-    if (draft.assignedTo.length === 0) next.assignedTo = "Assign this to someone.";
-    if (draft.reportTo.length === 0) next.reportTo = "Choose at least one reporting line.";
+    // Assigned-to and reports-to are deliberately optional: a task can be
+    // created unassigned, and the reporting line defaults to the super admin.
     if (!draft.startDate) next.startDate = "Pick a start date.";
     if (draft.endDate && draft.startDate && draft.endDate < draft.startDate)
       next.endDate = "The end date can't fall before the start date.";
@@ -187,7 +201,9 @@ export default function TaskForm({
     const payload = {
       taskId: draft.taskId.trim(),
       title: draft.title.trim(),
-      description: draft.description.trim(),
+      // Already HTML, and trimming it is meaningless — the server sanitises it
+      // and collapses an empty document to nothing.
+      description: draft.description,
       status: draft.status,
       priority: draft.priority,
       projectIds: draft.projectIds,
@@ -197,7 +213,14 @@ export default function TaskForm({
       endDate: draft.endDate || undefined,
       prUrl: draft.prUrl.trim() || undefined,
       // Blank lines are dropped rather than saved as empty acceptance criteria.
-      checklist: filledRows.map((c) => ({ ...c, label: c.label.trim(), score: clampScore(c.score) })),
+      checklist: filledRows.map((c) => ({
+        ...c,
+        label: c.label.trim(),
+        score: clampScore(c.score),
+        // Drop an owner who is no longer one of the task's assignees — the API
+        // enforces the same rule, so this keeps a stale pick from failing save.
+        ownerId: c.ownerId && draft.assignedTo.includes(c.ownerId) ? c.ownerId : undefined,
+      })),
     };
 
     if (task) {
@@ -260,10 +283,10 @@ export default function TaskForm({
         />
 
         <Span>
-          <TextArea
+          <RichTextEditor
             label="Description"
             required
-            rows={3}
+            rows={4}
             value={draft.description}
             onChange={(v) => set("description", v)}
             placeholder="What needs doing, and what done looks like."
@@ -304,11 +327,10 @@ export default function TaskForm({
         <Span>
           <MultiSelect
             label="Assigned to"
-            required
             value={draft.assignedTo}
             onChange={(v) => set("assignedTo", v)}
             options={peopleOptions}
-            placeholder="Choose one or more people"
+            placeholder="Optional — choose one or more people"
             error={errors.assignedTo}
           />
         </Span>
@@ -316,11 +338,10 @@ export default function TaskForm({
         <Span>
           <MultiSelect
             label="Reports to"
-            required
             value={draft.reportTo}
             onChange={(v) => set("reportTo", v)}
             options={reportOptions}
-            placeholder="Managers, team leaders and QC"
+            placeholder="Optional — defaults to the super admin"
             error={errors.reportTo}
           />
         </Span>
@@ -382,6 +403,54 @@ export default function TaskForm({
                         onClick={() => removeRow(c.id)}
                       />
                     </div>
+
+                    {/* Subtask metadata — a subtask carries a task-like shape.
+                        None of this feeds KRA; score + points below still do. */}
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      <SelectInput<TaskStatus>
+                        label={`Status for line ${i + 1}`}
+                        hideLabel
+                        value={c.status ?? "Not Started"}
+                        onChange={(v) => setRow(c.id, { status: v })}
+                        options={TASK_STATUSES.map((s) => ({ value: s, label: s }))}
+                      />
+                      <SelectInput<number>
+                        label={`Priority for line ${i + 1}`}
+                        hideLabel
+                        value={c.priority ?? 3}
+                        onChange={(v) => setRow(c.id, { priority: v })}
+                        options={PRIORITIES.map((p) => ({ value: p.value, label: p.short }))}
+                      />
+                      <SelectInput<string>
+                        label={`Owner for line ${i + 1}`}
+                        hideLabel
+                        value={c.ownerId ?? ""}
+                        onChange={(v) => setRow(c.id, { ownerId: v || undefined })}
+                        options={[{ value: "", label: "Owner — none" }, ...ownerOptions]}
+                      />
+                      <input
+                        type="date"
+                        value={c.startDate ?? ""}
+                        onChange={(e) => setRow(c.id, { startDate: e.target.value || undefined })}
+                        aria-label={`Start date for line ${i + 1}`}
+                        className="h-9 rounded-sm border border-input-border bg-form-bg px-2 text-[0.8125rem] text-text outline-none transition-colors focus:border-primary"
+                      />
+                      <input
+                        type="date"
+                        value={c.endDate ?? ""}
+                        onChange={(e) => setRow(c.id, { endDate: e.target.value || undefined })}
+                        aria-label={`End date for line ${i + 1}`}
+                        className="h-9 rounded-sm border border-input-border bg-form-bg px-2 text-[0.8125rem] text-text outline-none transition-colors focus:border-primary"
+                      />
+                    </div>
+                    <textarea
+                      rows={2}
+                      value={c.description ?? ""}
+                      onChange={(e) => setRow(c.id, { description: e.target.value || undefined })}
+                      placeholder={`Optional detail for subtask ${i + 1}`}
+                      aria-label={`Description for line ${i + 1}`}
+                      className="w-full rounded-sm border border-input-border bg-form-bg px-2.5 py-1.5 text-[0.8125rem] text-text outline-none transition-colors placeholder:text-muted focus:border-primary"
+                    />
 
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 ps-0.5">
                       <span className="flex items-center gap-1.5">

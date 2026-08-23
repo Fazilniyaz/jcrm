@@ -43,14 +43,35 @@ export type ProjectStateApi =
   | "completed"
   | "cancelled";
 
-export type TaskStateApi =
-  | "todo"
-  | "backlog"
-  | "inProgress"
-  | "inReview"
-  | "done"
-  | "blocked"
-  | "failed";
+/*
+ * The four states the product has, plus one it does not offer.
+ *
+ * `failed` is not a column and no control in this app can produce it. It stays
+ * in the union because the API still accepts it: it is the trigger for the
+ * spec's secondary KRA rule, which is deliberately NOT wired to `stuck` — a
+ * card dragged to Stuck must never quietly cost anyone points. A row that
+ * somehow carries it is rendered as Stuck and left alone.
+ */
+export type TaskStateApi = "notStarted" | "working" | "stuck" | "done" | "failed";
+
+/**
+ * A file attached to a task.
+ *
+ * Note what is NOT here: the storage key. The server never sends it — a client
+ * has no use for a path on the server's disk, and the download route takes the
+ * attachment's id, not a location.
+ */
+export type TaskAttachment = {
+  id: string;
+  taskId: string;
+  fileName: string;
+  mimeType: string;
+  /** Bytes. */
+  size: number;
+  uploadedById: string;
+  uploadedBy: string;
+  createdAt: string;
+};
 
 export type QcVerdictApi = "Approved" | "Corrections" | "Error";
 export type ToneApi = "blue" | "sky" | "orange" | "red" | "slate";
@@ -303,6 +324,18 @@ export type ChecklistLine = {
   done: boolean;
   score: number;
   points: number;
+  // Subtask metadata — descriptive only, never an input to KRA. All optional so
+  // a line written before these existed still reads back cleanly.
+  description?: string | null;
+  status?: TaskStateApi | null;
+  ownerId?: string | null;
+  priorityLevel?: number | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  createdBy?: string | null;
+  createdAt?: string | null;
+  updatedBy?: string | null;
+  updatedAt?: string | null;
 };
 
 export type QcReview = {

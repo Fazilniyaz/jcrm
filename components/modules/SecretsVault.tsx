@@ -17,6 +17,7 @@ import { Button, IconButton, SectionLabel, Badge, tone } from "@/components/ui";
 import { Modal } from "@/components/ui/overlay";
 import { useStore } from "@/lib/store/StoreProvider";
 import { secretsByEnv, toEnvFile } from "@/lib/store/selectors";
+import EnvImport from "./EnvImport";
 import {
   SECRET_ENVS,
   SECRET_ENV_FILE,
@@ -198,6 +199,34 @@ export function VaultEditor({
   const set = (id: string, patch: Partial<SecretEntry>) =>
     setRows((r) => r.map((s) => (s.id === id ? { ...s, ...patch } : s)));
 
+  /**
+   * Merge an imported block into the rows already on screen.
+   *
+   * Imported values overwrite a row with the same key in the same environment
+   * rather than sitting beside it — two rows with one key is exactly the
+   * duplicate `save` refuses, so producing one here would import a block and
+   * then refuse to save it. A blank starter row is dropped: it only exists
+   * because the editor opens with one, and keeping it would fail the same
+   * check the moment someone typed a key into it.
+   */
+  function importEntries(entries: { key: string; value: string }[], env: SecretEnv) {
+    setError("");
+    setRows((current) => {
+      const next = current.filter((row) => row.key.trim() || row.value.trim());
+      const at = new Map(next.map((row, index) => [`${row.env}:${row.key}`, index]));
+
+      for (const entry of entries) {
+        const existing = at.get(`${env}:${entry.key}`);
+        if (existing !== undefined) {
+          next[existing] = { ...next[existing], value: entry.value };
+        } else {
+          next.push({ ...newRow(), key: entry.key, value: entry.value, env });
+        }
+      }
+      return next;
+    });
+  }
+
   function save() {
     const filled = rows.filter((s) => s.key.trim());
     // Same key twice in the same file is a real mistake — the later one would
@@ -318,9 +347,17 @@ export function VaultEditor({
           ))}
         </ul>
 
-        <Button variant="ghost" icon={Plus} onClick={() => setRows((r) => [...r, newRow()])}>
-          Add value
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="ghost" icon={Plus} onClick={() => setRows((r) => [...r, newRow()])}>
+            Add value
+          </Button>
+          <EnvImport
+            existingKeys={(env) =>
+              new Set(rows.filter((row) => row.env === env && row.key.trim()).map((row) => row.key))
+            }
+            onImport={importEntries}
+          />
+        </div>
       </div>
     </Modal>
   );

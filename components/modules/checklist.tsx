@@ -64,6 +64,7 @@ import {
   type QcVerdict,
   type Task,
 } from "@/lib/store/types";
+import { RichTextView } from "@/components/ui/RichText";
 
 /*
  * The QC review queue — scoring the subtasks on finished work.
@@ -348,7 +349,7 @@ function ReviewPanel({ task, onDone }: { task: Task; onDone: () => void }) {
       <div className="space-y-4 xl:col-span-7">
         <div>
           <SectionLabel>Description</SectionLabel>
-          <p className="text-[0.8125rem] leading-relaxed text-text">{task.description}</p>
+          <RichTextView html={task.description} />
         </div>
 
         <div className="rounded-sm border border-line bg-card">

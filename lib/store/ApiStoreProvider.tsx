@@ -96,19 +96,50 @@ function run(promise: { unwrap: () => Promise<unknown> }, what: string) {
   });
 }
 
+/** How often the shared lists re-read the server while the tab is in front. */
+const LIVE_POLL_MS = 30_000;
+
 export default function ApiStoreProvider({ children }: { children: React.ReactNode }) {
   const local = useStore();
   const session = useSession();
   const signedIn = session.status === "user";
 
+  /*
+   * The shared lists, kept live.
+   *
+   * Everything here is written by OTHER people as well as by this session: a
+   * manager creates a task, an employee accepts a project, someone attaches a
+   * file. None of those raise a mutation in this tab, so nothing invalidates
+   * the cache here and the screen quietly goes out of date — which is what a
+   * superadmin watching an empty task list was actually looking at.
+   *
+   * `refetchOnFocus` already covers switching back to the tab. Polling covers
+   * the case it cannot: the tab is open and being watched the whole time, so it
+   * never re-focuses and so never refetches.
+   *
+   * `skipPollingIfUnfocused` stops a browser left open on a dozen tabs
+   * overnight from keeping all of them talking to the API for nobody — a
+   * backgrounded tab goes quiet, and catches up through `refetchOnFocus` the
+   * moment it is looked at again.
+   *
+   * Thirty seconds is the compromise. The blanket API limit is 300 requests a
+   * minute; five polled lists at this interval spend ten of them.
+   */
+  const live = {
+    skip: !signedIn,
+    pollingInterval: LIVE_POLL_MS,
+    skipPollingIfUnfocused: true,
+  };
+
   // `skip` keeps a signed-out demo portal from firing eight 401s on every load.
-  const employeesQuery = useListEmployeesQuery(undefined, { skip: !signedIn });
-  const projectsQuery = useListProjectsQuery(undefined, { skip: !signedIn });
-  const tasksQuery = useListTasksQuery(undefined, { skip: !signedIn });
-  const notificationsQuery = useListNotificationsQuery(undefined, { skip: !signedIn });
+  const employeesQuery = useListEmployeesQuery(undefined, live);
+  const projectsQuery = useListProjectsQuery(undefined, live);
+  const tasksQuery = useListTasksQuery(undefined, live);
+  const notificationsQuery = useListNotificationsQuery(undefined, live);
+  // The workspace is this user's own preferences; nobody else writes it.
   const workspaceQuery = useGetWorkspaceQuery(undefined, { skip: !signedIn });
 
-  const clientsQuery = useListClientsQuery(undefined, { skip: !signedIn });
+  const clientsQuery = useListClientsQuery(undefined, live);
 
   const [createClientMutation] = useCreateClientMutation();
   const [updateClientMutation] = useUpdateClientMutation();

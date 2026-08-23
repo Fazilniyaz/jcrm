@@ -71,6 +71,7 @@ import { getPortal } from "@/lib/portals";
 import ProjectForm from "./ProjectForm";
 import PlanEditor from "./PlanEditor";
 import SecretsVault, { VaultEditor } from "./SecretsVault";
+import { RichTextView, richTextToPlain } from "@/components/ui/RichText";
 
 type SortKey = "updated" | "name" | "progress" | "due";
 
@@ -122,7 +123,9 @@ export function ProjectManagement() {
     const rows = projects.filter((p) => {
       if (status !== "All" && p.status !== status) return false;
       if (!q) return true;
-      return `${p.name} ${p.code} ${p.client} ${p.description}`.toLowerCase().includes(q);
+      return `${p.name} ${p.code} ${p.client} ${richTextToPlain(p.description)}`
+        .toLowerCase()
+        .includes(q);
     });
 
     const sorted = [...rows];
@@ -407,7 +410,7 @@ function ProjectDetail({ project }: { project: Project }) {
       {/* brief */}
       <div className="space-y-4 xl:col-span-5">
         <Fact label="Description" block>
-          {project.description}
+          <RichTextView html={project.description} />
         </Fact>
 
         <div className="rounded-sm border border-line bg-card p-3">

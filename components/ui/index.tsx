@@ -133,6 +133,88 @@ export function StatusBadge({ status }: { status: string }) {
   return <Badge t={statusTone(status)}>{status}</Badge>;
 }
 
+/**
+ * The bright, solid status pill.
+ *
+ * Deliberately not a `Badge`: a Badge is a 12% wash of the hue with coloured
+ * text, which is right for a fact you read in passing (a priority, a role) but
+ * too quiet for the thing the whole board is organised by. This is the full
+ * hue with white on top, so a column reads as one colour from across the room.
+ *
+ * `colour` is the definition's `solid`, passed in rather than looked up, so the
+ * component stays a dumb primitive and the status vocabulary lives in one file.
+ */
+export function StatusChip({
+  label,
+  colour,
+  size = "md",
+  className = "",
+}: {
+  label: string;
+  colour: string;
+  size?: "sm" | "md";
+  className?: string;
+}) {
+  return (
+    <span
+      className={`inline-flex max-w-full items-center justify-center truncate rounded-sm font-semibold leading-none text-white ${
+        size === "sm" ? "px-2 py-1 text-[0.6875rem]" : "px-2.5 py-1.5 text-[0.75rem]"
+      } ${className}`}
+      style={{ background: colour }}
+    >
+      {label}
+    </span>
+  );
+}
+
+/**
+ * A named owner, bright enough to scan a column of them.
+ *
+ * Replaces the initials-only AvatarStack wherever ONE person is the answer to
+ * "whose is this". The stack is still right for overflow — it says "and three
+ * others" in the space of a word — so both exist and neither is a fallback for
+ * the other.
+ */
+export function OwnerChip({
+  initials,
+  name,
+  t = "blue",
+  size = "md",
+}: {
+  initials: string;
+  name: string;
+  t?: Tone;
+  size?: "sm" | "md";
+}) {
+  const avatar = size === "sm" ? 18 : 22;
+  return (
+    <span
+      className={`inline-flex max-w-full items-center gap-1.5 rounded-avatar ps-1 ${
+        size === "sm" ? "py-0.5 pe-2 text-[0.6875rem]" : "py-1 pe-2.5 text-[0.75rem]"
+      }`}
+      style={{ background: tone[t].soft }}
+    >
+      <Avatar initials={initials} t={t} size={avatar} />
+      <span className="min-w-0 truncate font-semibold" style={{ color: tone[t].text }}>
+        {name}
+      </span>
+    </span>
+  );
+}
+
+/** "Unassigned", in the same footprint as an OwnerChip so rows stay aligned. */
+export function UnassignedChip({ size = "md" }: { size?: "sm" | "md" }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-avatar border border-dashed border-line text-muted ${
+        size === "sm" ? "px-2 py-1 text-[0.6875rem]" : "px-2.5 py-1.5 text-[0.75rem]"
+      }`}
+    >
+      Unassigned
+    </span>
+  );
+}
+
 /* -------------------------------------------------------------- avatar -- */
 
 export function Avatar({
@@ -363,6 +445,8 @@ export function IconButton({
   tone: t,
   size = 32,
   type = "button",
+  disabled = false,
+  spinning = false,
 }: {
   icon: React.ElementType;
   label: string;
@@ -370,21 +454,27 @@ export function IconButton({
   tone?: Tone;
   size?: number;
   type?: "button" | "submit";
+  /** Refuses the press and dims. Set while the action it fires is in flight. */
+  disabled?: boolean;
+  /** Spins the glyph. Pass a loader icon with it; on its own it just rotates. */
+  spinning?: boolean;
 }) {
   return (
     <button
       type={type}
       onClick={onClick}
+      disabled={disabled}
       aria-label={label}
+      aria-busy={spinning || undefined}
       title={label}
-      className="inline-flex shrink-0 items-center justify-center rounded-sm border border-line text-muted transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      className="inline-flex shrink-0 items-center justify-center rounded-sm border border-line text-muted transition-colors hover:border-primary hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-line disabled:hover:text-muted"
       style={{
         width: size,
         height: size,
         ...(t ? { background: tone[t].soft, color: tone[t].text, borderColor: "transparent" } : {}),
       }}
     >
-      <Icon size={Math.round(size * 0.47)} />
+      <Icon size={Math.round(size * 0.47)} className={spinning ? "animate-spin" : undefined} />
     </button>
   );
 }

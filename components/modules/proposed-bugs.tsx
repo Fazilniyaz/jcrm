@@ -63,6 +63,7 @@ import {
   type BugSeverity,
   type Task,
 } from "@/lib/store/types";
+import { RichTextView, richTextToPlain } from "@/components/ui/RichText";
 
 /*
  * Proposed Bugs.
@@ -101,7 +102,7 @@ export function ProposedBugs() {
       .filter((b) => {
         if (severity !== "All" && b.origin?.severity !== severity) return false;
         if (!q) return true;
-        return `${b.title} ${b.taskId} ${b.description} ${b.origin?.raisedBy ?? ""}`
+        return `${b.title} ${b.taskId} ${richTextToPlain(b.description)} ${b.origin?.raisedBy ?? ""}`
           .toLowerCase()
           .includes(q);
       })
@@ -135,10 +136,10 @@ export function ProposedBugs() {
           icon={CheckCircle2}
         />
         <StatTile
-          label="In Review"
-          value={String(bugs.filter((b) => b.status === "In Review").length)}
-          hint="With QC for sign-off"
-          t="blue"
+          label="Stuck"
+          value={String(bugs.filter((b) => b.status === "Stuck").length)}
+          hint="Blocked, needs a decision"
+          t="red"
           icon={Timer}
         />
       </Grid>
@@ -304,7 +305,7 @@ function BugDetail({ bug }: { bug: Task }) {
       <div className="space-y-4 xl:col-span-7">
         <div>
           <SectionLabel>What happens</SectionLabel>
-          <p className="text-[0.8125rem] leading-relaxed text-text">{bug.description}</p>
+          <RichTextView html={bug.description} />
         </div>
 
         <div className="rounded-sm border border-line bg-card">
@@ -439,7 +440,7 @@ function RaiseBugForm({ open, onClose }: { open: boolean; onClose: () => void })
       taskId: nextTaskCode(state.tasks),
       title: title.trim(),
       description: description.trim(),
-      status: "New",
+      status: "Not Started",
       priority: priorityFor(severity),
       projectIds,
       assignedTo,

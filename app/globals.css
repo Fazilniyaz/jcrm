@@ -239,6 +239,62 @@ body {
   color: #fff;
 }
 
+/* ---- Drawer + popover motion ----
+   The drawer is a place you travel to, so it slides from the edge it lives on
+   rather than fading in place; the backdrop fades under it so the page behind
+   recedes instead of blinking out. Popovers scale from 98% so they read as
+   opening from the control that spawned them. */
+@keyframes drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(-0.125rem);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-drawer-in {
+  animation: drawer-in 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.animate-backdrop-in {
+  animation: backdrop-in 0.22s ease-out;
+}
+
+.animate-pop-in {
+  animation: pop-in 0.12s ease-out;
+}
+
+/* Motion is decoration here — the drawer is already positioned and readable
+   without it — so it is dropped entirely rather than merely shortened. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-drawer-in,
+  .animate-backdrop-in,
+  .animate-pop-in {
+    animation: none;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

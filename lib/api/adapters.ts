@@ -322,22 +322,27 @@ export function toApiSecrets(secrets: UiSecret[]): Record<string, unknown>[] {
 /* ----------------------------------------------------------------- tasks -- */
 
 const TASK_STATE_TO_UI: Record<TaskStateApi, TaskStatus> = {
-  todo: "New",
-  backlog: "Backlog",
-  inProgress: "In Progress",
-  inReview: "In Review",
+  notStarted: "Not Started",
+  working: "Working on it",
+  stuck: "Stuck",
   done: "Done",
-  // Neither has a column of its own on the board; both are work that is open
-  // and not currently moving.
-  blocked: "Backlog",
-  failed: "In Progress",
+  // Shown as Stuck because that is what it looks like to a person, but nothing
+  // here can WRITE it back — see TASK_STATE_TO_API below.
+  failed: "Stuck",
 };
 
+/*
+ * Note the asymmetry with the map above: `failed` has no key here.
+ *
+ * Reading a failed task shows it as Stuck; moving that card to Stuck sends
+ * `stuck`, not `failed`. If this mapped Stuck -> failed the round trip would
+ * fire the failure deduction on a status change the user reads as neutral, and
+ * every assignee would lose KRA for a card being dragged one column left.
+ */
 const TASK_STATE_TO_API: Record<TaskStatus, TaskStateApi> = {
-  New: "todo",
-  Backlog: "backlog",
-  "In Progress": "inProgress",
-  "In Review": "inReview",
+  "Not Started": "notStarted",
+  "Working on it": "working",
+  Stuck: "stuck",
   Done: "done",
 };
 
@@ -354,7 +359,9 @@ export function toUiTask(task: ApiTask, nameOf: (id: string) => string): UiTask 
     taskId: task.taskCode ?? "",
     title: task.title,
     description: task.description ?? "",
-    status: TASK_STATE_TO_UI[task.state],
+    // Falls back rather than throwing: an un-migrated row would otherwise blank
+    // the whole module rather than showing one task in the wrong column.
+    status: TASK_STATE_TO_UI[task.state] ?? "Not Started",
     priority: task.priorityLevel,
     projectIds: task.projectIds,
     assignedTo: task.assigneeIds,
@@ -382,6 +389,17 @@ export function toUiTask(task: ApiTask, nameOf: (id: string) => string): UiTask 
       label: c.label,
       score: c.score,
       points: c.points,
+      // Subtask metadata. Undefined when the line predates these fields.
+      description: c.description ?? undefined,
+      status: c.status ? (TASK_STATE_TO_UI[c.status] ?? undefined) : undefined,
+      ownerId: c.ownerId ?? undefined,
+      priority: c.priorityLevel ?? undefined,
+      startDate: toOptionalDay(c.startDate),
+      endDate: toOptionalDay(c.endDate),
+      createdBy: c.createdBy ?? undefined,
+      createdAt: toOptionalDay(c.createdAt),
+      updatedBy: c.updatedBy ?? undefined,
+      updatedAt: toOptionalDay(c.updatedAt),
     })),
     startDate: toDay(task.startDate) || toDay(task.createdAt),
     endDate: toOptionalDay(task.endDate ?? task.dueDate),
@@ -408,12 +426,25 @@ export function toApiTaskBody(patch: Partial<UiTask>): Record<string, unknown> {
   if (patch.assignedTo !== undefined) body.assigneeIds = patch.assignedTo;
   if (patch.reportTo !== undefined) body.reportToIds = patch.reportTo;
   if (patch.checklist !== undefined) {
-    body.checklist = patch.checklist.map((c) => ({
-      id: c.id,
-      label: c.label,
-      score: c.score,
-      points: c.points,
-    }));
+    body.checklist = patch.checklist.map((c) => {
+      // Server-managed fields (updatedBy/updatedAt) are never sent — the API's
+      // strict schema would reject them and the service stamps them itself.
+      const line: Record<string, unknown> = {
+        id: c.id,
+        label: c.label,
+        score: c.score,
+        points: c.points,
+      };
+      if (c.description !== undefined) line.description = c.description;
+      if (c.status !== undefined) line.status = TASK_STATE_TO_API[c.status];
+      if (c.ownerId) line.ownerId = c.ownerId;
+      if (c.priority !== undefined) line.priorityLevel = c.priority;
+      if (c.startDate) line.startDate = c.startDate;
+      if (c.endDate) line.endDate = c.endDate;
+      if (c.createdBy !== undefined) line.createdBy = c.createdBy;
+      if (c.createdAt) line.createdAt = c.createdAt;
+      return line;
+    });
   }
   if (patch.startDate) body.startDate = patch.startDate;
   if (patch.endDate) body.dueDate = patch.endDate;

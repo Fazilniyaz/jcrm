@@ -335,8 +335,55 @@ export const STANDARD_DAY_MINUTES = 8 * 60;
 
 /* ----------------------------------------------------------------- tasks -- */
 
-export const TASK_STATUSES = ["New", "Backlog", "In Progress", "In Review", "Done"] as const;
-export type TaskStatus = (typeof TASK_STATUSES)[number];
+/**
+ * The four task statuses, and the ONLY place they are written down.
+ *
+ * Board columns, filter chips, counts, sort order, the API mapping and every
+ * chip in every view are derived from this array — a status string never
+ * appears as a literal anywhere else. Adding a fifth is one entry here.
+ *
+ * `solid` is the bright chip background. It is stated here rather than read
+ * from `tone` in components/ui/index.tsx because this module is imported by
+ * server-side code and must not pull in the component barrel; the values must
+ * stay in step with `tone[x].solid`, which is why each one names the same CSS
+ * variable that map does.
+ */
+export const TASK_STATUS_DEFS = [
+  {
+    value: "Not Started",
+    label: "Not Started",
+    tone: "slate",
+    solid: "rgb(var(--secondary-rgb))",
+  },
+  {
+    value: "Working on it",
+    label: "Working on it",
+    tone: "blue",
+    solid: "rgb(var(--primary-rgb))",
+  },
+  { value: "Stuck", label: "Stuck", tone: "red", solid: "rgb(var(--danger-rgb))" },
+  { value: "Done", label: "Done", tone: "sky", solid: "rgb(var(--brand-blue-rgb))" },
+] as const satisfies readonly { value: string; label: string; tone: Tone; solid: string }[];
+
+export type TaskStatusDef = (typeof TASK_STATUS_DEFS)[number];
+export type TaskStatus = TaskStatusDef["value"];
+
+export const TASK_STATUSES = TASK_STATUS_DEFS.map((s) => s.value) as readonly TaskStatus[];
+
+const TASK_STATUS_DEF_MAP = new Map<TaskStatus, TaskStatusDef>(
+  TASK_STATUS_DEFS.map((s) => [s.value, s]),
+);
+
+/** The definition behind a status. Falls back to the first column, never throws. */
+export function taskStatusMeta(status: TaskStatus): TaskStatusDef {
+  return TASK_STATUS_DEF_MAP.get(status) ?? TASK_STATUS_DEFS[0];
+}
+
+/** Board/sort order. `indexOf` on a derived array would be O(n) per comparison. */
+export function taskStatusOrder(status: TaskStatus): number {
+  const index = TASK_STATUS_DEFS.findIndex((s) => s.value === status);
+  return index === -1 ? TASK_STATUS_DEFS.length : index;
+}
 
 /**
  * One subtask — a single unit of acceptance under a task.
@@ -350,7 +397,28 @@ export type TaskStatus = (typeof TASK_STATUSES)[number];
  * A subtask can be fully scored and still be worth points: `score` is the
  * employee's claim, `points` is what it costs if QC disagrees.
  */
-export type Subtask = { id: string; label: string; score: number; points: number };
+export type Subtask = {
+  id: string;
+  label: string;
+  score: number;
+  points: number;
+  /*
+   * Subtask metadata — a subtask is a richer checklist line (Monday-style).
+   * All optional and all KRA-neutral: only `score` and `points` above ever
+   * touch the QC deduction. `ownerId` is one of the PARENT task's assignees.
+   */
+  description?: string;
+  status?: TaskStatus;
+  ownerId?: string;
+  /** The frontend's 1..5, same scale as a task's `priority`. */
+  priority?: number;
+  startDate?: string;
+  endDate?: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedBy?: string;
+  updatedAt?: string;
+};
 
 /**
  * The old name for a Subtask.
@@ -653,13 +721,16 @@ export const PROJECT_STATUS_TONE: Record<ProjectStatus, Tone> = {
   Delivered: "sky",
 };
 
-export const TASK_STATUS_TONE: Record<TaskStatus, Tone> = {
-  New: "slate",
-  Backlog: "slate",
-  "In Progress": "blue",
-  "In Review": "orange",
-  Done: "sky",
-};
+/**
+ * Derived, not declared — so a tone can only ever be changed in one place.
+ *
+ * Kept as a map because six modules outside Tasks (Dashboard, Calendar,
+ * Checklist, Employees, Projects, Proposed Bugs) already tint a Progress bar or
+ * a Badge by task status and read it directly.
+ */
+export const TASK_STATUS_TONE = Object.fromEntries(
+  TASK_STATUS_DEFS.map((s) => [s.value, s.tone]),
+) as Record<TaskStatus, Tone>;
 
 export const ROLE_TONE: Record<EmployeeRole, Tone> = {
   Manager: "blue",

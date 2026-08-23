@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import {
   MANDATORY_MODULES,
@@ -82,14 +83,23 @@ function decode(raw: string): Record<PortalSlug, ModuleSlug[]> {
 
 /* ------------------------------------------------------------- reading ---- */
 
-export async function readGrants(): Promise<Record<PortalSlug, ModuleSlug[]>> {
+/*
+ * Wrapped in react.cache: one render pass asks for the grants from the portal
+ * layout, again from the module page, and a third time from the access editor.
+ * Without this, each one re-reads and re-decodes the cookie. Cheap on its own,
+ * but it is on the critical path of every navigation, so it may as well be
+ * decoded once per request.
+ */
+export const readGrants = cache(async function readGrants(): Promise<
+  Record<PortalSlug, ModuleSlug[]>
+> {
   const raw = (await cookies()).get(ACCESS_COOKIE)?.value;
   const grants = raw ? decode(raw) : defaultGrants();
   // Portals that can't be restricted are normalised on the way out, so a
   // stale or hand-edited cookie can't lock a super admin out of anything.
   for (const slug of ALWAYS_FULL) grants[slug] = [...OPTIONAL_MODULES];
   return grants;
-}
+});
 
 export async function writeGrants(grants: Record<PortalSlug, ModuleSlug[]>) {
   for (const slug of ALWAYS_FULL) grants[slug] = [...OPTIONAL_MODULES];
