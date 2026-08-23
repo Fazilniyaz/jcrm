@@ -401,7 +401,19 @@ export function scopedProjects(state: StoreState): Project[] {
 export function scopedTasks(state: StoreState): Task[] {
   const ids = idsInBranch(state);
   if (!ids) return state.tasks;
-  return state.tasks.filter((t) => t.assignedTo.some((id) => ids.has(id)));
+  // A task with no assignee yet (e.g. just created, not yet handed to anyone)
+  // has nothing to test `assignedTo` against, so `.some()` on an empty array
+  // always failed and silently dropped it from every branch-scoped view — an
+  // unassigned task a manager just created would vanish from a superAdmin's
+  // scoped Tasks module even though the API returned it. Falling back to the
+  // task's project being in scope (the same test scopedProjects uses) keeps an
+  // unassigned task visible wherever its project already is.
+  const scopedProjectIds = new Set(scopedProjects(state).map((p) => p.id));
+  return state.tasks.filter(
+    (t) =>
+      t.assignedTo.some((id) => ids.has(id)) ||
+      t.projectIds.some((id) => scopedProjectIds.has(id)),
+  );
 }
 
 export function scopedLeave(state: StoreState): LeaveRequest[] {
