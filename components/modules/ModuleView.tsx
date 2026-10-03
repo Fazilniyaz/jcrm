@@ -50,6 +50,12 @@ const Leads = dynamic(() => import("./leads").then((m) => m.Leads), { loading })
 const Branches = dynamic(() => import("./org-live").then((m) => m.Branches), { loading });
 const Clients = dynamic(() => import("./clients").then((m) => m.Clients), { loading });
 const Settings = dynamic(() => import("./system").then((m) => m.Settings), { loading });
+// WebGL, so client-only: three.js reaches for `window` at module scope and
+// throws if it is evaluated on the server.
+const Playground = dynamic(() => import("./playground").then((m) => m.Playground), {
+  loading,
+  ssr: false,
+});
 
 const Calendar = dynamic(() => import("./calendar").then((m) => m.Calendar), { loading });
 const Monitor = dynamic(() => import("./monitor").then((m) => m.Monitor), { loading });
@@ -126,8 +132,20 @@ export default function ModuleView({ slug, user, role, portal, accessEditor }: M
       return <Monitor />;
     case "settings":
       return <Settings user={user} role={role} accessEditor={accessEditor} />;
+    case "playground":
+      return <Playground />;
 
     default:
+      /*
+       * Every ModuleSlug must have a case above.
+       *
+       * This assignment is the guard: add a slug to lib/modules.ts without
+       * wiring a view here and `slug` is no longer `never`, so the build
+       * fails. Without it the switch just fell through to `return null`, and
+       * the module rendered as a page title with an empty body — which is
+       * exactly how the Playground shipped broken once.
+       */
+      slug satisfies never;
       return null;
   }
 }
