@@ -96,6 +96,8 @@ export type SessionUser = {
   phone: string | null;
   tone: ToneApi;
   modules: string[];
+  /** slug -> "view" | "edit" for everything in `modules`. */
+  moduleLevels: Record<string, AccessLevel>;
   moduleAccess: string[];
 };
 
@@ -439,9 +441,22 @@ export type ModuleAccessMatrix = {
     defaults: string[];
     granted: string[];
     effective: string[];
+    /** slug -> the level it resolved to. Absent means no access at all. */
+    levels: Record<string, AccessLevel>;
     locked: boolean;
   }[];
 };
+
+/**
+ * How much of a module someone gets.
+ *
+ *   view  they may read it; the API refuses every write.
+ *   edit  the full module.
+ *
+ * `edit` is the default: a role's own modules come in at `edit`, and a grant
+ * stored without a level predates this and still means `edit`.
+ */
+export type AccessLevel = "view" | "edit";
 
 export type BranchScope = {
   /** The branch every module filters by, or null for the whole group. */
