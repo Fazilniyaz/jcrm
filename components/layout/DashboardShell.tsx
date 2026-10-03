@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
+import { useState, useSyncExternalStore, useTransition } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import { fromApiModuleSlugs, type ModuleSlug } from "@/lib/modules";
+import { applyThemeMode, useThemeMode } from "@/lib/theme";
 import { logout, switchPortal } from "@/lib/actions";
 import { useLogoutMutation } from "@/lib/api/api";
 import { useSession } from "@/lib/api/session";
@@ -125,7 +126,10 @@ export default function DashboardShell({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(initialCollapsed);
 
-  const [dark, setDark] = useState(false);
+  // Mode is an attribute on <html>, restored before first paint and persisted
+  // in localStorage by lib/theme — so a dark reader stays dark across reloads
+  // and the header toggle, the Settings card and this shell can never disagree.
+  const dark = useThemeMode() === "dark";
   const [, startTransition] = useTransition();
   const [apiLogout] = useLogoutMutation();
 
@@ -141,11 +145,6 @@ export default function DashboardShell({
       .catch(() => undefined) // a demo portal has no API session to end
       .finally(() => startTransition(() => void logout()));
   };
-
-  // Valex drives the theme from a root data attribute, not a class
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme-mode", dark ? "dark" : "light");
-  }, [dark]);
 
   const toggleRail = () => {
     if (!isDesktop) {
@@ -194,7 +193,7 @@ export default function DashboardShell({
             onToggle={toggleRail}
             collapsed={collapsed}
             dark={dark}
-            onThemeToggle={() => setDark((v) => !v)}
+            onThemeToggle={() => applyThemeMode(dark ? "light" : "dark")}
             portal={portal}
             portalName={workspace.name}
             canSwitchPortal={session.status === "anonymous"}

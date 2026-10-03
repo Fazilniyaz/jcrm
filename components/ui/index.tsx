@@ -5,35 +5,47 @@
  */
 import type { Tone } from "@/lib/ui/tone";
 
-/* Tints resolve through CSS variables so they follow the light/dark theme.
-   `solid` and `text` use the contrast-safe shades; `soft` uses the raw logo
-   hue at 12% as a wash. */
-export const tone: Record<Tone, { soft: string; solid: string; text: string }> = {
-  blue: {
-    soft: "rgba(var(--brand-blue-rgb),0.12)",
-    solid: "rgb(var(--primary-rgb))",
-    text: "rgb(var(--primary-rgb))",
-  },
-  sky: {
-    soft: "rgba(var(--brand-blue-rgb),0.12)",
-    solid: "rgb(var(--brand-blue-rgb))",
-    text: "rgb(var(--primary-rgb))",
-  },
-  orange: {
-    soft: "rgba(var(--brand-orange-rgb),0.12)",
-    solid: "rgb(var(--warning-rgb))",
-    text: "rgb(var(--warning-rgb))",
-  },
-  red: {
-    soft: "rgba(var(--brand-red-rgb),0.12)",
-    solid: "rgb(var(--danger-rgb))",
-    text: "rgb(var(--danger-rgb))",
-  },
-  slate: {
-    soft: "rgba(var(--secondary-rgb),0.12)",
-    solid: "rgb(var(--secondary-rgb))",
-    text: "rgb(var(--secondary-rgb))",
-  },
+/*
+ * The tone system. Every tint resolves through a CSS variable, so all of it
+ * follows the light/dark theme AND the chosen palette without a conditional in
+ * a component.
+ *
+ * Four parts, and mixing them up is the one way to break contrast:
+ *
+ *   soft     the pale wash. A badge or icon-tile GROUND. Pair with `text`.
+ *   text     the hue at >= 4.5:1 on the card. Labels, links, small type, icons
+ *            on a soft wash.
+ *   solid    the saturated hue. A LARGE fill — avatar, progress bar, chart
+ *            series — where the 3:1 graphic threshold applies.
+ *   onSolid  the label colour that sits ON `solid`. Not always white: the vivid
+ *            green, amber and cyan are too light, so those carry ink instead.
+ */
+const t = (
+  name: string,
+  onSolid = "var(--on-vivid)",
+): { soft: string; solid: string; text: string; onSolid: string } => ({
+  soft: `var(--${name}-soft)`,
+  solid: `rgb(var(--${name}-vivid-rgb))`,
+  text: `rgb(var(--${name}-rgb))`,
+  onSolid,
+});
+
+export const tone: Record<Tone, { soft: string; solid: string; text: string; onSolid: string }> = {
+  /* the five original keys */
+  blue: t("info"),
+  sky: t("success", "var(--on-vivid-success)"),
+  orange: t("warning", "var(--on-vivid-warning)"),
+  red: t("danger"),
+  slate: t("secondary"),
+
+  /* the rest of the palette */
+  primary: t("primary"),
+  green: t("success", "var(--on-vivid-success)"),
+  amber: t("warning", "var(--on-vivid-warning)"),
+  info: t("info"),
+  purple: t("purple"),
+  pink: t("pink"),
+  teal: t("teal", "var(--on-vivid-teal)"),
 };
 
 /** Maps a free-text status onto a brand tone. Red stays reserved for genuinely
@@ -57,11 +69,11 @@ export function Card({
   children: React.ReactNode;
   className?: string;
 }) {
-  return (
-    <div className={`rounded-card border border-line bg-card text-text shadow-card ${className}`}>
-      {children}
-    </div>
-  );
+  // Flat: a plain white block on an off-white ground — no border, no shadow.
+  // The separation comes from the page being off-white against the card's
+  // white; at this density, adding a border and shadow to every card turns the
+  // screen busy. (Matches the Ropix reference surface.)
+  return <div className={`rounded-card bg-card text-text ${className}`}>{children}</div>;
 }
 
 export function CardHeader({
@@ -74,9 +86,12 @@ export function CardHeader({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line p-4 sm:p-5">
+    // 16px semibold sentence case and a hairline, per the reference. Caps at
+    // this density turn every card into a shout and cost the headings their
+    // hierarchy.
+    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-5 py-4">
       <div className="min-w-0">
-        <h3 className="text-[14px] font-bold uppercase text-heading">{title}</h3>
+        <h3 className="text-[16px] font-semibold text-heading">{title}</h3>
         {desc && <p className="mt-1 text-[13px] leading-snug text-muted">{desc}</p>}
       </div>
       {action}
@@ -228,9 +243,12 @@ export function Avatar({
 }) {
   return (
     <span
-      className="inline-flex shrink-0 items-center justify-center rounded-avatar font-medium text-white"
+      className="inline-flex shrink-0 items-center justify-center rounded-avatar font-medium"
       style={{
         background: tone[t].solid,
+        // Not text-white: three of the solid fills (green, amber, cyan) are too
+        // light to carry white. Each tone names its own correct label colour.
+        color: tone[t].onSolid,
         width: size,
         height: size,
         fontSize: Math.max(10, Math.round(size * 0.31)),
@@ -247,8 +265,11 @@ export function AvatarStack({ items }: { items: string[] }) {
       {items.map((i, idx) => (
         <span
           key={i + idx}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-avatar text-[10px] font-medium text-white ring-2 ring-[var(--custom-white)]"
-          style={{ background: tone[(["blue", "orange", "sky", "slate"] as Tone[])[idx % 4]].solid }}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-avatar text-[10px] font-medium ring-2 ring-[var(--custom-white)]"
+          style={{
+            background: tone[(["blue", "orange", "sky", "slate"] as Tone[])[idx % 4]].solid,
+            color: tone[(["blue", "orange", "sky", "slate"] as Tone[])[idx % 4]].onSolid,
+          }}
         >
           {i}
         </span>
@@ -418,7 +439,7 @@ export function Button({
   const base =
     "inline-flex items-center justify-center gap-1.5 rounded-sm px-3 py-2 text-[0.8125rem] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50";
   const styles = {
-    primary: "bg-primary text-white transition-[filter] hover:brightness-110",
+    primary: "bg-primary text-on-primary transition-[filter] hover:brightness-110",
     ghost: "border border-line bg-card text-text hover:border-primary hover:text-primary",
     danger: "border border-line bg-card hover:border-danger",
   }[variant];

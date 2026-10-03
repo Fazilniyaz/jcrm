@@ -295,7 +295,10 @@ export function getModule(slug: string): ModuleDef | undefined {
   return MODULE_MAP.get(slug as ModuleSlug);
 }
 
-export const MODULE_GROUP_ORDER: ModuleDef["group"][] = [
+/** The sidebar section a module belongs to. */
+export type ModuleGroup = ModuleDef["group"];
+
+export const MODULE_GROUP_ORDER: ModuleGroup[] = [
   "Overview",
   "Work",
   "People",

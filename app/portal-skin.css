@@ -1,0 +1,646 @@
+/*
+ * ===========================================================================
+ * THE INTRODUCER PORTAL SKIN
+ *
+ * Replaces the old vercel-theme.css. Loads AFTER globals.css and BEFORE
+ * theme-palettes.css, so: base tokens → this skin → the chosen palette.
+ *
+ * A dense, business admin surface — off-white ground, flat white cards, a
+ * 5px radius, and colour doing the navigational work: nine saturated accents
+ * carried on icon discs, badges and rules, over a near-neutral page.
+ *
+ * ---------------------------------------------------------------------------
+ * THREE SHADES PER ACCENT, and they are not interchangeable
+ *
+ *   --x-vivid-rgb  the saturated hue. LARGE fills only — icon discs, avatars,
+ *                  progress bars, chart series — where 3:1 applies.
+ *   --x-rgb        the same hue at >= 4.5:1 on the card. Text, links, small
+ *                  type, button fills with a label on them.
+ *   --x-soft       the hue as a pale wash, for a badge or tile ground.
+ *
+ * White on the vivid orange is 3.15:1 and on the vivid green 2.21:1 — both
+ * fail for a button label. That is the whole reason the split exists.
+ *
+ * ---------------------------------------------------------------------------
+ * HOW THIS SURVIVES THE PALETTE PICKER (Settings → Appearance, 15 themes)
+ *
+ * `--x-soft` is never written as a literal. It is mixed from `--x-rgb` against
+ * the card colour, so it follows whichever palette is active AND re-mixes
+ * itself for dark mode, where `--custom-white` is the dark card. One
+ * declaration, correct in every combination.
+ *
+ * `--x-vivid-rgb` cannot be derived — you cannot compute a MORE saturated
+ * colour from a less saturated one — so the nine below are literals for the
+ * default "classic" palette. Every other palette falls back to its own
+ * `--x-rgb` through the `:not([data-theme="classic"])` block further down, so
+ * switching theme never leaves a stale orange disc behind.
+ * ===========================================================================
+ */
+
+:root {
+  /* How much of the accent goes into a soft wash. Higher in dark, where the
+     same percentage over a dark card is invisible. */
+  --soft-mix: 12%;
+
+  /* --- vivid: large fills only ------------------------------------------ */
+  --primary-vivid-rgb: 242, 101, 34; /* #f26522 */
+  --secondary-vivid-rgb: 12, 75, 94; /* #0c4b5e */
+  --success-vivid-rgb: 3, 201, 90; /* #03c95a */
+  --danger-vivid-rgb: 231, 13, 13; /* #e70d0d */
+  --warning-vivid-rgb: 255, 193, 7; /* #ffc107 */
+  --info-vivid-rgb: 27, 132, 255; /* #1b84ff */
+  --purple-vivid-rgb: 171, 71, 188; /* #ab47bc */
+  --pink-vivid-rgb: 253, 57, 149; /* #fd3995 */
+  --teal-vivid-rgb: 13, 202, 240; /* #0dcaf0 */
+
+  /* The label ON a vivid fill. Three of the nine are too light for white. */
+  --on-vivid: #ffffff;
+  --on-vivid-success: #111827;
+  --on-vivid-warning: #111827;
+  --on-vivid-teal: #111827;
+
+  /* --- accessible: text, links, button fills ---------------------------- */
+  --primary-rgb: 195, 85, 35; /* #c35523 — 4.53:1 on white */
+  --primary-deep-rgb: 160, 67, 25;
+  --secondary-rgb: 12, 75, 94; /* #0c4b5e — 9.62:1 */
+  --success-rgb: 8, 136, 71; /* #088847 — 4.57:1 */
+  --danger-rgb: 231, 13, 13; /* #e70d0d — 4.71:1 */
+  --warning-rgb: 143, 114, 22; /* #8f7216 — 4.60:1 */
+  --info-rgb: 26, 117, 225; /* #1a75e1 — 4.50:1 */
+  --purple-rgb: 171, 71, 188; /* #ab47bc — 4.82:1 */
+  --pink-rgb: 213, 51, 130; /* #d53382 — 4.54:1 */
+  --teal-rgb: 15, 129, 158; /* #0f819e — 4.51:1 */
+  --orange-rgb: 242, 101, 34;
+
+  --on-primary-rgb: 255, 255, 255;
+
+  --brand-blue-rgb: 27, 132, 255;
+  --brand-orange-rgb: 242, 101, 34;
+  --brand-red-rgb: 231, 13, 13;
+  --brand-ink-rgb: 17, 24, 39;
+
+  --light-rgb: 243, 244, 246;
+  --dark-rgb: 17, 24, 39;
+
+  /* --- ground and chrome ------------------------------------------------ */
+  --body-bg-rgb: 248, 249, 250;
+  --body-bg-rgb2: 248, 249, 250;
+  --default-body-bg-color: #f8f9fa;
+  --default-background: #f8f9fa;
+  --custom-white: #ffffff; /* the card, and what soft washes mix against */
+  --custom-black: #000000;
+  --custom-bg-color: #f8f9fa;
+
+  /*
+   * Two levels of text, not three — the reference surface has a grey body and
+   * an ink heading, and nothing between. #6b7280 is 4.60:1 on the #f8f9fa
+   * ground and 5.13:1 on a white card, so the body colour carries small type
+   * safely; going lighter for a third "muted" level would not.
+   */
+  --default-text-color: #6b7280;
+  --card-title-color: #111827;
+  --text-muted: #6b7280;
+  --default-border: #ededed;
+  --bootstrap-card-border: #ededed;
+  --list-hover-focus-bg: #f3f4f6;
+  --input-border: #e5e7eb;
+  --form-control-bg: #ffffff;
+
+  --menu-bg: #ffffff;
+  --menu-prime-color: #6b7280;
+  --menu-category-color: #9ca3af;
+  --menu-border-color: #ededed;
+  --header-bg: #ffffff;
+  --header-prime-color: #6b7280;
+  --header-border-color: #ededed;
+
+  /*
+   * Cards are FLAT — no shadow at all. Separation comes from the ground being
+   * off white against the card's white. These two are for the things that
+   * genuinely float above the page.
+   */
+  --card-box-shadow: none;
+  --pop-box-shadow: 0 10px 30px rgba(17, 24, 39, 0.12);
+  /* The sidebar is the one piece of chrome that casts a shadow rather than
+     drawing a border. */
+  --rail-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  --rail-w: 251px;
+  --topbar-h: 52px;
+  /* The active navigation row. A neutral tint, not the accent — the accent is
+     spent on data, and a coloured rail row competes with it. */
+  --nav-active-bg: #e8e9ea;
+
+  color-scheme: light;
+
+  --gray-1: #f9fafb;
+  --gray-2: #f3f4f6;
+  --gray-3: #e5e7eb;
+  --gray-4: #d1d5db;
+  --gray-5: #9ca3af;
+  --gray-6: #6b7280;
+  --gray-7: #4b5563;
+  --gray-8: #374151;
+  --gray-9: #111827;
+}
+
+[data-theme-mode="dark"] {
+  --soft-mix: 22%;
+
+  /*
+   * The vivid hues already clear 4.5:1 against a dark card, so here the vivid
+   * shade IS the text shade — darkening them the way the light theme needs
+   * would turn them to mud on this ground.
+   *
+   * The fills lift with them, so their label flips to ink. That is what
+   * --on-primary-rgb is for.
+   */
+  --primary-rgb: 242, 101, 34; /* 5.36:1 on the card */
+  --primary-deep-rgb: 255, 138, 79;
+  --secondary-rgb: 99, 140, 152; /* 4.61:1 */
+  --success-rgb: 3, 201, 90; /* 7.66:1 */
+  --danger-rgb: 237, 74, 74; /* 4.56:1 */
+  --warning-rgb: 255, 193, 7; /* 10.38:1 */
+  --info-rgb: 27, 132, 255; /* 4.66:1 */
+  --purple-rgb: 184, 99, 198; /* 4.52:1 */
+  --pink-rgb: 253, 57, 149; /* 4.99:1 */
+  --teal-rgb: 13, 202, 240; /* 8.64:1 */
+  --orange-rgb: 242, 101, 34;
+
+  --on-primary-rgb: 17, 24, 39;
+
+  --light-rgb: 42, 46, 53;
+  --dark-rgb: 243, 244, 246;
+
+  --body-bg-rgb: 18, 20, 23;
+  --body-bg-rgb2: 18, 20, 23;
+  --default-body-bg-color: #121417;
+  --default-background: #1f2329;
+  --custom-white: #1a1d21; /* the dark card — soft washes mix against this */
+  --custom-black: #ffffff;
+  --custom-bg-color: #1f2329;
+
+  --default-text-color: #d1d5db;
+  --card-title-color: #f3f4f6;
+  --text-muted: #9ca3af;
+  --default-border: #2b3039;
+  --bootstrap-card-border: #2b3039;
+  --list-hover-focus-bg: rgba(255, 255, 255, 0.06);
+  --input-border: #343a44;
+  --form-control-bg: #15181c;
+
+  --menu-bg: #1a1d21;
+  --menu-prime-color: #9ca3af;
+  --menu-category-color: #6b7280;
+  --menu-border-color: #2b3039;
+  --header-bg: #1a1d21;
+  --header-prime-color: #9ca3af;
+  --header-border-color: #2b3039;
+
+  --card-box-shadow: none;
+  --pop-box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  --rail-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+  --nav-active-bg: rgba(255, 255, 255, 0.08);
+
+  color-scheme: dark;
+
+  --gray-1: #1f2329;
+  --gray-2: #262b32;
+  --gray-3: #2b3039;
+  --gray-4: #3a414c;
+  --gray-5: #6b7280;
+  --gray-6: #9ca3af;
+  --gray-7: #b6bcc6;
+  --gray-8: #d1d5db;
+  --gray-9: #f3f4f6;
+}
+
+/*
+ * Any palette other than "classic" sets its own --x-rgb. Point vivid at it so
+ * the icon discs and progress bars move with the theme instead of staying
+ * orange. Custom properties resolve at use, so this one block covers all
+ * fourteen without repeating a value.
+ */
+:root:not([data-theme="classic"]) {
+  --primary-vivid-rgb: var(--primary-rgb);
+  --secondary-vivid-rgb: var(--secondary-rgb);
+  --success-vivid-rgb: var(--success-rgb);
+  --danger-vivid-rgb: var(--danger-rgb);
+  --warning-vivid-rgb: var(--warning-rgb);
+  --info-vivid-rgb: var(--info-rgb);
+  --purple-vivid-rgb: var(--purple-rgb);
+  --pink-vivid-rgb: var(--pink-rgb);
+  --teal-vivid-rgb: var(--teal-rgb);
+}
+
+/*
+ * The soft washes, mixed rather than written. `--custom-white` is the card in
+ * BOTH modes, so a single declaration lands correctly on white and on the dark
+ * card, at the per-mode strength set by --soft-mix above.
+ */
+:root,
+[data-theme-mode="dark"] {
+  --primary-soft: color-mix(in srgb, rgb(var(--primary-rgb)) var(--soft-mix), var(--custom-white));
+  --secondary-soft: color-mix(in srgb, rgb(var(--secondary-rgb)) var(--soft-mix), var(--custom-white));
+  --success-soft: color-mix(in srgb, rgb(var(--success-rgb)) var(--soft-mix), var(--custom-white));
+  --danger-soft: color-mix(in srgb, rgb(var(--danger-rgb)) var(--soft-mix), var(--custom-white));
+  --warning-soft: color-mix(in srgb, rgb(var(--warning-rgb)) var(--soft-mix), var(--custom-white));
+  --info-soft: color-mix(in srgb, rgb(var(--info-rgb)) var(--soft-mix), var(--custom-white));
+  --purple-soft: color-mix(in srgb, rgb(var(--purple-rgb)) var(--soft-mix), var(--custom-white));
+  --pink-soft: color-mix(in srgb, rgb(var(--pink-rgb)) var(--soft-mix), var(--custom-white));
+  --teal-soft: color-mix(in srgb, rgb(var(--teal-rgb)) var(--soft-mix), var(--custom-white));
+}
+
+/*
+ * ===========================================================================
+ * SHAPE — 5px, the radius the whole surface is built on.
+ * ===========================================================================
+ */
+:root {
+  --radius-sm: 4px;
+  --radius-card: 5px;
+  --radius-avatar: 5px;
+}
+
+/*
+ * The utilities have to be restated, not just the variables above: Tailwind
+ * inlined the original literal when it generated `.rounded-card`, so the class
+ * carries `0.375rem` and would never pick up a new value from the var.
+ */
+.rounded-card {
+  border-radius: var(--radius-card);
+}
+
+.rounded-sm {
+  border-radius: var(--radius-sm);
+}
+
+.rounded-avatar {
+  border-radius: var(--radius-avatar);
+}
+
+/*
+ * ===========================================================================
+ * TYPOGRAPHY
+ *
+ * Geist throughout, Geist Mono for figures. The previous skin set headings in
+ * Instrument Serif; a dense admin surface wants one voice, and here the colour
+ * carries the personality instead of the typeface.
+ *
+ * Small and tight on purpose — 14px body, 13px controls — which is what makes
+ * a data screen feel like a tool rather than a brochure.
+ * ===========================================================================
+ */
+:root {
+  --font-sans: var(--font-portal-sans), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-portal-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-heading: var(--font-portal-sans), system-ui, -apple-system, sans-serif;
+}
+
+body {
+  font-family: var(--font-portal-sans), system-ui, -apple-system, sans-serif;
+  /* -0.28px at 14px. Small text at 0 tracking is the commonest tell that a
+     type scale was never tuned. */
+  letter-spacing: -0.011em;
+}
+
+h1,
+h2,
+h3,
+h4,
+.text-display {
+  font-family: var(--font-portal-sans), system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+h1,
+.text-display {
+  letter-spacing: -0.028em;
+}
+
+/* Uppercase micro-labels need the tracking opened back up, or the caps jam. */
+[class*="uppercase"] {
+  letter-spacing: 0.04em;
+}
+
+.font-mono,
+.tabular-nums {
+  font-family: var(--font-portal-mono), ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Every figure that sits in a column with other figures. Proportional digits
+   make a column of money impossible to scan. */
+.tabular-nums,
+table td,
+table th {
+  font-variant-numeric: tabular-nums;
+}
+
+/* A detail nobody asks for and everybody notices when it is wrong. */
+::selection {
+  background: rgb(var(--primary-vivid-rgb));
+  color: #ffffff;
+}
+
+[data-theme-mode="dark"] ::selection {
+  background: rgb(var(--primary-vivid-rgb));
+  color: #111827;
+}
+
+/*
+ * ===========================================================================
+ * THE HERO GRADIENT
+ *
+ * Orange into magenta, the two warmest hues in the palette. Both ends were
+ * measured against the text that sits on them, not picked by eye:
+ *
+ *   light  #c2410c → #be185d, white text   5.18:1 → 6.04:1
+ *   dark   #fb923c → #f472b6, ink text     7.84:1 → 6.70:1
+ *
+ * Text on the band is solid, never translucent: white at 85% over the orange
+ * end drops to 4.16:1, below the line for body copy.
+ *
+ * Any palette other than "classic" takes its own primary pair instead, so the
+ * band follows the picker. That selector outranks the dark block (0,2,0 over
+ * 0,1,0), which is what makes it hold in both modes.
+ * ===========================================================================
+ */
+:root {
+  --hero-from: #c2410c;
+  --hero-to: #be185d;
+  --on-hero: #ffffff;
+}
+
+[data-theme-mode="dark"] {
+  --hero-from: #fb923c;
+  --hero-to: #f472b6;
+  --on-hero: #111827;
+}
+
+:root:not([data-theme="classic"]) {
+  --hero-from: rgb(var(--primary-deep-rgb));
+  --hero-to: rgb(var(--primary-rgb));
+  --on-hero: rgb(var(--on-primary-rgb));
+}
+
+.pk-hero {
+  background: linear-gradient(120deg, var(--hero-from) 0%, var(--hero-to) 100%);
+  color: var(--on-hero);
+}
+
+/*
+ * ===========================================================================
+ * THE RAIL — 251px open, 76px collapsed
+ *
+ * The attribute sits on <html> and is restored by the pre-paint script in
+ * app/layout.js, so a collapsed rail does not flash open on every load.
+ * ===========================================================================
+ */
+:root {
+  --rail-w-open: 251px;
+  --rail-w-closed: 76px;
+}
+
+[data-rail="collapsed"] {
+  --rail-w: var(--rail-w-closed);
+}
+
+.pk-rail {
+  transition: width 0.28s var(--pk-ease);
+}
+
+[data-rail="collapsed"] .pk-rail-label,
+[data-rail="collapsed"] .pk-rail-hide {
+  display: none;
+}
+
+[data-rail="collapsed"] .pk-rail-center {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+/* The opposite: things that only exist in the narrow rail. */
+.pk-rail-only {
+  display: none;
+}
+[data-rail="collapsed"] .pk-rail-only {
+  display: flex;
+}
+
+/* Section headings become a short rule when there is no room for words. */
+[data-rail="collapsed"] .pk-rail-heading {
+  height: 1px;
+  margin: 0.75rem auto;
+  padding: 0;
+  width: 1.5rem;
+  background: var(--default-border);
+  font-size: 0;
+}
+
+/*
+ * ===========================================================================
+ * MOTION
+ *
+ * One character throughout: things arrive by rising a few pixels and fading
+ * in, on a long-tail ease. Nothing bounces, nothing spins — this is a tool
+ * people open to check their money, and motion that performs for them gets in
+ * the way of the number they came for.
+ *
+ * Every class this file adds is prefixed `pk-`, never `px-`. Tailwind reads
+ * `px-<anything>` as horizontal padding and resolves the word against the
+ * theme — `--spacing-rail` exists, so a class called `px-rail` silently became
+ * 80px of padding on both sides of the sidebar.
+ *
+ * `backwards`, never `both`. A filled end state would pin `transform: none`
+ * on the element for good, and animation declarations outrank ordinary ones —
+ * so every hover lift on a tile would silently stop working.
+ * ===========================================================================
+ */
+:root {
+  --pk-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pk-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes pk-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+}
+
+/* Paths are given pathLength="1", so one keyframe draws any line. */
+@keyframes pk-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+
+@keyframes pk-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes pk-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes pk-float {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(-12px, 10px);
+  }
+}
+
+@keyframes pk-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--danger-vivid-rgb), 0.55);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 7px rgba(var(--danger-vivid-rgb), 0);
+  }
+}
+
+/* A neutral ping in the element's own colour — a live marker, not an alarm.
+   (pk-ring is the alarm: it is danger-red and belongs to the unread badge.) */
+@keyframes pk-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  80%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+.pk-ping {
+  animation: pk-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* A band of light that crosses a gradient surface every few seconds. */
+@keyframes pk-sheen {
+  0%,
+  70% {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(260%) skewX(-18deg);
+  }
+}
+
+/* Each route arrives rather than appears. Keyed on the pathname in Frame.js. */
+.pk-page {
+  animation: pk-rise 0.5s var(--pk-ease) backwards;
+}
+
+/* Children of a grid arrive one after another, 55ms apart. */
+.pk-stagger > * {
+  animation: pk-rise 0.55s var(--pk-ease) backwards;
+}
+.pk-stagger > :nth-child(2) { animation-delay: 55ms; }
+.pk-stagger > :nth-child(3) { animation-delay: 110ms; }
+.pk-stagger > :nth-child(4) { animation-delay: 165ms; }
+.pk-stagger > :nth-child(5) { animation-delay: 220ms; }
+.pk-stagger > :nth-child(6) { animation-delay: 275ms; }
+.pk-stagger > :nth-child(7) { animation-delay: 330ms; }
+.pk-stagger > :nth-child(n + 8) { animation-delay: 385ms; }
+
+.pk-menu {
+  animation: pk-pop 0.18s var(--pk-ease) backwards;
+  transform-origin: top right;
+}
+
+.pk-draw {
+  stroke-dasharray: 1;
+  animation: pk-draw 1.1s var(--pk-ease) 0.2s backwards;
+}
+
+.pk-grow {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: pk-grow 0.7s var(--pk-ease) backwards;
+}
+
+.pk-fade {
+  animation: pk-fade 0.9s ease 0.35s backwards;
+}
+
+.pk-float {
+  animation: pk-float 9s ease-in-out infinite;
+}
+
+.pk-ring {
+  animation: pk-ring 1.8s ease-out infinite;
+}
+
+.pk-sheen {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.pk-sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+  animation: pk-sheen 6s ease-in-out infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Lift on hover, for things that go somewhere. */
+.pk-lift {
+  transition:
+    transform 0.25s var(--pk-ease),
+    box-shadow 0.25s var(--pk-ease);
+}
+.pk-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--pop-box-shadow);
+}
+
+/*
+ * Every animation above, off, for anyone who has asked their system for less
+ * motion. Not "shorter" — off. Vestibular triggers are the float and the
+ * sheen, but a person who set the preference does not want the rest either.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .pk-page,
+  .pk-stagger > *,
+  .pk-menu,
+  .pk-draw,
+  .pk-grow,
+  .pk-fade,
+  .pk-float,
+  .pk-ring,
+  .pk-ping,
+  .pk-sheen::after {
+    animation: none !important;
+  }
+  /* A ping frozen mid-scale would sit as a blurred halo; hide it instead. */
+  .pk-ping {
+    opacity: 0;
+  }
+  .pk-rail,
+  .pk-lift {
+    transition: none !important;
+  }
+  .pk-lift:hover {
+    transform: none;
+  }
+}

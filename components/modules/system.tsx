@@ -10,6 +10,7 @@ import {
 } from "@/components/ui";
 import WorkspacePrefs from "./WorkspacePrefs";
 import AccountSettings from "./AccountSettings";
+import AppearanceCard from "./AppearanceCard";
 
 /* =============================================================== settings == */
 
@@ -160,7 +161,7 @@ export function Settings({
             <div className="flex flex-wrap items-center gap-2 rounded-sm bg-subtle p-3">
               <Palette size={16} className="text-muted" />
               <p className="flex-1 text-[0.75rem] text-muted">
-                Theme follows the toggle in the header.
+                Light, dark and the colour theme are set in Appearance, above.
               </p>
             </div>
           </CardBody>
@@ -179,14 +180,19 @@ export function Settings({
    * inside the fallback now, so it appears only when nobody is signed in.
    */
   return (
-    <AccountSettings
-      fallback={
-        <div className="space-y-4">
-          {accessEditor}
-          {staticCards}
-        </div>
-      }
-    />
+    <div className="space-y-4">
+      {/* Appearance sits above everything and shows for every account — the
+          light/dark switch and the colour-theme picker, saved in the browser. */}
+      <AppearanceCard />
+      <AccountSettings
+        fallback={
+          <div className="space-y-4">
+            {accessEditor}
+            {staticCards}
+          </div>
+        }
+      />
+    </div>
   );
 }
 

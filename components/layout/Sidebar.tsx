@@ -3,7 +3,79 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MODULES, MODULE_GROUP_ORDER, type ModuleSlug } from "@/lib/modules";
+import {
+  MODULES,
+  MODULE_GROUP_ORDER,
+  type ModuleGroup,
+  type ModuleSlug,
+} from "@/lib/modules";
+import { tone } from "@/components/ui";
+import type { Tone } from "@/lib/ui/tone";
+
+/*
+ * A hue per menu section, so a colour comes to mean a place — the same tint is
+ * carried on the row's icon tile here, and on that module's tiles inside the
+ * page. Reads straight off the shared tone vocabulary.
+ */
+const GROUP_TONE: Record<ModuleGroup, Tone> = {
+  Overview: "primary",
+  Work: "blue",
+  People: "purple",
+  Finance: "green",
+  Organisation: "teal",
+  System: "slate",
+};
+
+function NavRow({
+  href,
+  label,
+  Icon,
+  t,
+  active,
+  onClick,
+}: {
+  href: string;
+  label: string;
+  Icon: React.ElementType;
+  t: Tone;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const c = tone[t];
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      aria-current={active ? "page" : undefined}
+      title={label}
+      className={`group/row relative mx-3 flex items-center gap-2.5 rounded-card py-[7px] ps-2 pe-3 text-[0.875rem] font-medium transition-colors lg:group-data-[collapsed=true]/rail:mx-2 lg:group-data-[collapsed=true]/rail:justify-center lg:group-data-[collapsed=true]/rail:px-0 ${
+        active ? "text-heading" : "text-menu-text hover:bg-hover hover:text-heading"
+      }`}
+      style={active ? { background: c.soft } : undefined}
+    >
+      {/* The hue of the place you are in, down the rail's edge. */}
+      {active && (
+        <span
+          className="absolute inset-y-1.5 -start-0 w-[3px] rounded-e-full lg:group-data-[collapsed=true]/rail:hidden"
+          style={{ background: c.solid }}
+          aria-hidden
+        />
+      )}
+      <span
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-card transition-transform duration-200 group-hover/row:scale-110"
+        style={
+          active
+            ? { background: c.solid, color: c.onSolid, boxShadow: `0 6px 14px -6px ${c.solid}` }
+            : { background: c.soft, color: c.text }
+        }
+        aria-hidden
+      >
+        <Icon size={15} strokeWidth={2.2} />
+      </span>
+      <span className="flex-1 truncate lg:group-data-[collapsed=true]/rail:hidden">{label}</span>
+    </Link>
+  );
+}
 
 export default function Sidebar({
   open,
@@ -49,15 +121,15 @@ export default function Sidebar({
 
       <aside
         data-collapsed={collapsed ? "true" : "false"}
-        className={`group/rail fixed inset-y-0 left-0 z-40 flex flex-col overflow-hidden border-r border-(--menu-border-color) bg-menu transition-[width,transform] duration-300 ease-out ${
+        className={`group/rail fixed inset-y-0 left-0 z-40 flex flex-col overflow-hidden bg-menu shadow-[var(--rail-shadow)] transition-[width,transform] duration-300 ease-out ${
           open ? "translate-x-0" : "-translate-x-full"
         } ${collapsed ? "w-sidebar lg:w-rail" : "w-sidebar"}`}
       >
         {/* brand — the wordmark is too wide for the rail, so the collapsed
-            state shows just the mark (app/icon.svg) */}
+            state shows just the mark (public/icon.svg) */}
         <Link
           href={`/${portal}`}
-          className="flex h-header shrink-0 items-center border-b border-(--menu-border-color) px-5.5 lg:group-data-[collapsed=true]/rail:justify-center lg:group-data-[collapsed=true]/rail:px-0"
+          className="flex h-header shrink-0 items-center border-b border-(--menu-border-color) px-5 lg:group-data-[collapsed=true]/rail:justify-center lg:group-data-[collapsed=true]/rail:px-0"
         >
           <Image
             src="/jadvix-logo.svg"
@@ -89,57 +161,48 @@ export default function Sidebar({
         </Link>
 
         {/* whose workspace this is — the company for a real account */}
-        <div className="shrink-0 overflow-hidden border-b border-(--menu-border-color) px-5.5 py-3 lg:group-data-[collapsed=true]/rail:hidden">
-          <p className="truncate text-[0.6875rem] font-semibold uppercase tracking-wide text-muted">
-            {workspaceLabel}
-          </p>
-          <p className="mt-0.5 truncate text-[0.8125rem] font-semibold text-heading">
-            {workspaceName}
-          </p>
+        <div className="shrink-0 px-3 pt-3 lg:group-data-[collapsed=true]/rail:hidden">
+          <div
+            className="overflow-hidden rounded-card px-3 py-2.5"
+            style={{ background: tone.primary.soft }}
+          >
+            <p className="truncate text-[0.625rem] font-semibold uppercase tracking-wide text-muted">
+              {workspaceLabel}
+            </p>
+            <p className="mt-0.5 truncate text-[0.8125rem] font-semibold text-heading">
+              {workspaceName}
+            </p>
+          </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden pb-8 pt-1">
-          {groups.map((g) => (
-            <ul key={g.group}>
-              <li className="mt-6 mb-2 px-5.5 text-[11px] font-bold uppercase tracking-[0.03125rem] whitespace-nowrap text-menu-category lg:group-data-[collapsed=true]/rail:mx-4 lg:group-data-[collapsed=true]/rail:mt-4 lg:group-data-[collapsed=true]/rail:mb-2 lg:group-data-[collapsed=true]/rail:h-px lg:group-data-[collapsed=true]/rail:overflow-hidden lg:group-data-[collapsed=true]/rail:bg-(--menu-border-color) lg:group-data-[collapsed=true]/rail:px-0 lg:group-data-[collapsed=true]/rail:text-transparent">
-                {g.group}
-              </li>
-              {g.items.map((m) => {
-                const Icon = m.icon;
-                const isActive = m.slug === active;
-                return (
-                  <li key={m.slug}>
-                    <Link
-                      href={`/${portal}/${m.slug}`}
-                      onClick={onClose}
-                      aria-current={isActive ? "page" : undefined}
-                      // title doubles as the tooltip once labels are hidden
-                      title={m.label}
-                      className={`relative flex items-center py-2.5 pl-5.5 pr-5 text-[13px] font-normal no-underline transition-colors lg:group-data-[collapsed=true]/rail:justify-center lg:group-data-[collapsed=true]/rail:px-0 ${
-                        isActive ? "text-primary" : "text-menu-text hover:text-primary"
-                      }`}
-                    >
-                      {/* active marker is a 3px bar, matching the Valex chrome */}
-                      {isActive && (
-                        <span className="absolute inset-y-0 left-0 my-auto h-10 w-0.75 bg-primary" />
-                      )}
-                      <Icon
-                        size={18}
-                        strokeWidth={1.8}
-                        className="me-3.5 h-5.5 w-5.5 shrink-0 lg:group-data-[collapsed=true]/rail:me-0"
+        <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-4 pt-1">
+          {groups.map((g) => {
+            const t = GROUP_TONE[g.group];
+            return (
+              <div key={g.group} className="mt-4 first:mt-3">
+                <p className="mb-2 px-5 text-[0.625rem] font-semibold uppercase tracking-[0.08em] whitespace-nowrap text-menu-category lg:group-data-[collapsed=true]/rail:mx-auto lg:group-data-[collapsed=true]/rail:my-3 lg:group-data-[collapsed=true]/rail:h-px lg:group-data-[collapsed=true]/rail:w-6 lg:group-data-[collapsed=true]/rail:overflow-hidden lg:group-data-[collapsed=true]/rail:bg-(--menu-border-color) lg:group-data-[collapsed=true]/rail:px-0 lg:group-data-[collapsed=true]/rail:text-transparent">
+                  {g.group}
+                </p>
+                <ul className="space-y-0.5">
+                  {g.items.map((m) => (
+                    <li key={m.slug}>
+                      <NavRow
+                        href={`/${portal}/${m.slug}`}
+                        label={m.label}
+                        Icon={m.icon}
+                        t={t}
+                        active={m.slug === active}
+                        onClick={onClose}
                       />
-                      <span className="flex-1 truncate lg:group-data-[collapsed=true]/rail:hidden">
-                        {m.label}
-                      </span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          ))}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
         </nav>
 
-        <div className="shrink-0 overflow-hidden border-t border-(--menu-border-color) px-5.5 py-3 lg:group-data-[collapsed=true]/rail:hidden">
+        <div className="shrink-0 overflow-hidden border-t border-(--menu-border-color) px-5 py-3 lg:group-data-[collapsed=true]/rail:hidden">
           <p className="truncate text-[0.6875rem] text-muted">
             {caption} · {modules.length} modules
           </p>

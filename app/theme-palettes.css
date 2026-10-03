@@ -1,0 +1,386 @@
+/*
+ * Colour themes ("palettes") — the second, independent theme axis.
+ *
+ *   data-theme-mode = light | dark     (unchanged; defaults stay as they were)
+ *   data-theme      = palette id        (default "classic", stored in
+ *                                        localStorage "ropix.theme-palette")
+ *
+ * Imported after globals.css and portal-skin.css, never edited into them: "classic" has NO
+ * block here, so the default look is exactly the existing tokens. Every other
+ * palette is two blocks with the SAME token list — light, then light+dark — so
+ * a light value can never leak into dark mode (both selectors win over the
+ * defaults by source order / specificity, and the dark block overrides every
+ * key the light one sets).
+ *
+ * Only colour tokens are overridden: accents everywhere, and surfaces/ink for
+ * the three coloured-surface themes. No geometry, spacing or type.
+ *
+ * Contrast: every text/surface pairing below is at least WCAG AA (4.5:1),
+ * chart and icon marks at least 3:1, and each palette's outbound/inbound data
+ * pair passes the dataviz validator's colourblind (ΔE ≥ 11.8) and normal-vision
+ * (ΔE ≥ 15.3) separation. Status colours (success/warning/danger) are not
+ * overridden, so they keep one meaning in every palette.
+ */
+
+/* ---- Royal Gold (royalGold) ----
+ * Luxe gold on a true near-black (not classic's espresso), with a richer foil run.
+ * Day is gilt paper. Surfaces retuned, as the brief allows for this theme.
+ */
+[data-theme="royalGold"] {
+  --primary-rgb: 138, 90, 18;
+  --on-primary-rgb: 255, 255, 255;
+  --info-rgb: 47, 105, 143;
+  --brand-blue-rgb: 184, 134, 43;
+  --orange-rgb: 165, 110, 23;
+  --primary-deep-rgb: 122, 79, 15;
+  --body-bg-rgb: 251, 248, 241;
+  --body-bg-rgb2: 251, 248, 241;
+  --default-body-bg-color: #FBF8F1;
+  --default-text-color: #1C160E;
+  --card-title-color: #1C160E;
+  --text-muted: #6B5F4E;
+  --custom-white: #FFFFFF;
+  --custom-black: #1C160E;
+  --custom-bg-color: #F4EFE4;
+  --default-background: #F4EFE4;
+  --menu-bg: #F4EFE4;
+  --header-bg: #FBF8F1;
+  --list-hover-focus-bg: #F4EFE4;
+  --form-control-bg: #FFFFFF;
+  --default-border: #E6DDCB;
+  --bootstrap-card-border: #E6DDCB;
+  --input-border: #E6DDCB;
+  --menu-border-color: #E6DDCB;
+  --header-border-color: #E6DDCB;
+  --brand-ink-rgb: 28, 22, 14;
+  --secondary-rgb: 107, 95, 78;
+  --light-rgb: 244, 239, 228;
+  --dark-rgb: 28, 22, 14;
+  --gray-1: #F6F6F5;
+  --gray-2: #EDECEC;
+  --gray-3: #E1E1E0;
+  --gray-4: #C9C7C5;
+  --gray-5: #A09D9A;
+  --gray-6: #807D78;
+  --gray-7: #605C56;
+  --gray-8: #403B35;
+  --gray-9: #1C160E;
+}
+[data-theme="royalGold"][data-theme-mode="dark"] {
+  --primary-rgb: 229, 177, 91;
+  --on-primary-rgb: 11, 10, 8;
+  --info-rgb: 129, 178, 210;
+  --brand-blue-rgb: 217, 162, 74;
+  --orange-rgb: 213, 151, 57;
+  --primary-deep-rgb: 229, 177, 91;
+  --body-bg-rgb: 8, 8, 10;
+  --body-bg-rgb2: 8, 8, 10;
+  --default-body-bg-color: #08080A;
+  --default-text-color: #F5EFE0;
+  --card-title-color: #F5EFE0;
+  --text-muted: #B8AE9C;
+  --custom-white: #111113;
+  --custom-black: #F5EFE0;
+  --custom-bg-color: #18171A;
+  --default-background: #18171A;
+  --menu-bg: #18171A;
+  --header-bg: #08080A;
+  --list-hover-focus-bg: #1E1D21;
+  --form-control-bg: #18171A;
+  --default-border: #2E2A24;
+  --bootstrap-card-border: #2E2A24;
+  --input-border: #2E2A24;
+  --menu-border-color: #2E2A24;
+  --header-border-color: #2E2A24;
+  --brand-ink-rgb: 8, 8, 10;
+  --secondary-rgb: 184, 174, 156;
+  --light-rgb: 30, 29, 33;
+  --dark-rgb: 245, 239, 224;
+  --gray-1: rgba(245, 239, 224, 0.1);
+  --gray-2: rgba(245, 239, 224, 0.2);
+  --gray-3: rgba(245, 239, 224, 0.3);
+  --gray-4: rgba(245, 239, 224, 0.4);
+  --gray-5: rgba(245, 239, 224, 0.5);
+  --gray-6: rgba(245, 239, 224, 0.6);
+  --gray-7: rgba(245, 239, 224, 0.7);
+  --gray-8: rgba(245, 239, 224, 0.8);
+  --gray-9: rgba(245, 239, 224, 0.9);
+}
+
+/* ---- Obsidian (obsidian) ----
+ * Graphite and cool ivory with one restrained steel-blue accent; inbound is
+ * silver/graphite so the data stays monochrome. Surfaces retuned (allowed).
+ */
+[data-theme="obsidian"] {
+  --primary-rgb: 47, 105, 143;
+  --on-primary-rgb: 255, 255, 255;
+  --info-rgb: 31, 41, 55;
+  --brand-blue-rgb: 92, 122, 146;
+  --orange-rgb: 63, 85, 102;
+  --primary-deep-rgb: 42, 95, 130;
+  --body-bg-rgb: 245, 246, 247;
+  --body-bg-rgb2: 245, 246, 247;
+  --default-body-bg-color: #F5F6F7;
+  --default-text-color: #111418;
+  --card-title-color: #111418;
+  --text-muted: #5B636E;
+  --custom-white: #FFFFFF;
+  --custom-black: #111418;
+  --custom-bg-color: #EDEFF1;
+  --default-background: #EDEFF1;
+  --menu-bg: #EDEFF1;
+  --header-bg: #F5F6F7;
+  --list-hover-focus-bg: #EDEFF1;
+  --form-control-bg: #FFFFFF;
+  --default-border: #DDE1E5;
+  --bootstrap-card-border: #DDE1E5;
+  --input-border: #DDE1E5;
+  --menu-border-color: #DDE1E5;
+  --header-border-color: #DDE1E5;
+  --brand-ink-rgb: 17, 20, 24;
+  --secondary-rgb: 91, 99, 110;
+  --light-rgb: 237, 239, 241;
+  --dark-rgb: 17, 20, 24;
+  --gray-1: #F5F6F6;
+  --gray-2: #ECECED;
+  --gray-3: #E0E0E1;
+  --gray-4: #C6C7C8;
+  --gray-5: #9B9C9E;
+  --gray-6: #7A7B7E;
+  --gray-7: #585B5D;
+  --gray-8: #373A3D;
+  --gray-9: #111418;
+}
+[data-theme="obsidian"][data-theme-mode="dark"] {
+  --primary-rgb: 129, 178, 210;
+  --on-primary-rgb: 11, 12, 14;
+  --info-rgb: 228, 231, 235;
+  --brand-blue-rgb: 111, 155, 184;
+  --orange-rgb: 159, 183, 200;
+  --primary-deep-rgb: 129, 178, 210;
+  --body-bg-rgb: 11, 12, 14;
+  --body-bg-rgb2: 11, 12, 14;
+  --default-body-bg-color: #0B0C0E;
+  --default-text-color: #EEF0F2;
+  --card-title-color: #EEF0F2;
+  --text-muted: #A3A9B1;
+  --custom-white: #131518;
+  --custom-black: #EEF0F2;
+  --custom-bg-color: #181B1F;
+  --default-background: #181B1F;
+  --menu-bg: #181B1F;
+  --header-bg: #0B0C0E;
+  --list-hover-focus-bg: #1F2328;
+  --form-control-bg: #181B1F;
+  --default-border: #2A2F36;
+  --bootstrap-card-border: #2A2F36;
+  --input-border: #2A2F36;
+  --menu-border-color: #2A2F36;
+  --header-border-color: #2A2F36;
+  --brand-ink-rgb: 11, 12, 14;
+  --secondary-rgb: 163, 169, 177;
+  --light-rgb: 31, 35, 40;
+  --dark-rgb: 238, 240, 242;
+  --gray-1: rgba(238, 240, 242, 0.1);
+  --gray-2: rgba(238, 240, 242, 0.2);
+  --gray-3: rgba(238, 240, 242, 0.3);
+  --gray-4: rgba(238, 240, 242, 0.4);
+  --gray-5: rgba(238, 240, 242, 0.5);
+  --gray-6: rgba(238, 240, 242, 0.6);
+  --gray-7: rgba(238, 240, 242, 0.7);
+  --gray-8: rgba(238, 240, 242, 0.8);
+  --gray-9: rgba(238, 240, 242, 0.9);
+}
+
+/* ---- Porcelain (porcelain) ----
+ * Calm minimal: walnut ink on neutral near-white, a quiet graphite accent;
+ * night is soft charcoal. DEVIATION: the brief allows surface changes only for
+ * Royal Gold and Obsidian, but "soft charcoal" is a surface — accents alone
+ * cannot produce it — so Porcelain retunes surfaces too, at the same AA bar.
+ */
+[data-theme="porcelain"] {
+  --primary-rgb: 61, 58, 54;
+  --on-primary-rgb: 255, 255, 255;
+  --info-rgb: 47, 105, 143;
+  --brand-blue-rgb: 138, 132, 125;
+  --orange-rgb: 107, 101, 94;
+  --primary-deep-rgb: 61, 58, 54;
+  --body-bg-rgb: 250, 250, 249;
+  --body-bg-rgb2: 250, 250, 249;
+  --default-body-bg-color: #FAFAF9;
+  --default-text-color: #281B11;
+  --card-title-color: #281B11;
+  --text-muted: #6B625B;
+  --custom-white: #FFFFFF;
+  --custom-black: #281B11;
+  --custom-bg-color: #F4F4F3;
+  --default-background: #F4F4F3;
+  --menu-bg: #F4F4F3;
+  --header-bg: #FAFAF9;
+  --list-hover-focus-bg: #F4F4F3;
+  --form-control-bg: #FFFFFF;
+  --default-border: #E7E5E4;
+  --bootstrap-card-border: #E7E5E4;
+  --input-border: #E7E5E4;
+  --menu-border-color: #E7E5E4;
+  --header-border-color: #E7E5E4;
+  --brand-ink-rgb: 40, 27, 17;
+  --secondary-rgb: 107, 98, 91;
+  --light-rgb: 244, 244, 243;
+  --dark-rgb: 40, 27, 17;
+  --gray-1: #F6F6F5;
+  --gray-2: #EEEDEC;
+  --gray-3: #E3E1E0;
+  --gray-4: #CBC8C6;
+  --gray-5: #A59F9B;
+  --gray-6: #877F7A;
+  --gray-7: #695F58;
+  --gray-8: #4A3F37;
+  --gray-9: #281B11;
+}
+[data-theme="porcelain"][data-theme-mode="dark"] {
+  --primary-rgb: 217, 213, 207;
+  --on-primary-rgb: 28, 28, 30;
+  --info-rgb: 129, 178, 210;
+  --brand-blue-rgb: 168, 163, 156;
+  --orange-rgb: 189, 184, 177;
+  --primary-deep-rgb: 217, 213, 207;
+  --body-bg-rgb: 28, 28, 30;
+  --body-bg-rgb2: 28, 28, 30;
+  --default-body-bg-color: #1C1C1E;
+  --default-text-color: #EDEBE8;
+  --card-title-color: #EDEBE8;
+  --text-muted: #ABA7A1;
+  --custom-white: #242426;
+  --custom-black: #EDEBE8;
+  --custom-bg-color: #2A2A2D;
+  --default-background: #2A2A2D;
+  --menu-bg: #2A2A2D;
+  --header-bg: #1C1C1E;
+  --list-hover-focus-bg: #303033;
+  --form-control-bg: #2A2A2D;
+  --default-border: #3A3A3D;
+  --bootstrap-card-border: #3A3A3D;
+  --input-border: #3A3A3D;
+  --menu-border-color: #3A3A3D;
+  --header-border-color: #3A3A3D;
+  --brand-ink-rgb: 28, 28, 30;
+  --secondary-rgb: 171, 167, 161;
+  --light-rgb: 48, 48, 51;
+  --dark-rgb: 237, 235, 232;
+  --gray-1: rgba(237, 235, 232, 0.1);
+  --gray-2: rgba(237, 235, 232, 0.2);
+  --gray-3: rgba(237, 235, 232, 0.3);
+  --gray-4: rgba(237, 235, 232, 0.4);
+  --gray-5: rgba(237, 235, 232, 0.5);
+  --gray-6: rgba(237, 235, 232, 0.6);
+  --gray-7: rgba(237, 235, 232, 0.7);
+  --gray-8: rgba(237, 235, 232, 0.8);
+  --gray-9: rgba(237, 235, 232, 0.9);
+}
+
+/* ---- Azure (azure) ----
+ * Professional blue. Inbound is bronze (day) / sand (night) — a warm partner
+ * to the blue. The obvious teal sat ΔE 5.3 from the night blue under
+ * deuteranopia, below the dataviz floor.
+ */
+[data-theme="azure"] {
+  --primary-rgb: 29, 111, 184;
+  --on-primary-rgb: 255, 255, 255;
+  --info-rgb: 110, 90, 60;
+  --brand-blue-rgb: 47, 105, 143;
+  --orange-rgb: 47, 105, 143;
+  --primary-deep-rgb: 26, 95, 158;
+}
+[data-theme="azure"][data-theme-mode="dark"] {
+  --primary-rgb: 129, 178, 210;
+  --on-primary-rgb: 10, 12, 15;
+  --info-rgb: 230, 211, 179;
+  --brand-blue-rgb: 111, 163, 198;
+  --orange-rgb: 94, 148, 186;
+  --primary-deep-rgb: 129, 178, 210;
+}
+
+/* ---- Sapphire (sapphire) ----
+ * A stronger, brighter blue; inbound is deep teal / aqua.
+ */
+[data-theme="sapphire"] {
+  --primary-rgb: 37, 99, 235;
+  --on-primary-rgb: 255, 255, 255;
+  --info-rgb: 11, 107, 111;
+  --brand-blue-rgb: 59, 111, 224;
+  --orange-rgb: 29, 79, 196;
+  --primary-deep-rgb: 29, 79, 196;
+}
+[data-theme="sapphire"][data-theme-mode="dark"] {
+  --primary-rgb: 124, 160, 255;
+  --on-primary-rgb: 10, 12, 20;
+  --info-rgb: 95, 201, 192;
+  --brand-blue-rgb: 106, 143, 240;
+  --orange-rgb: 91, 128, 230;
+  --primary-deep-rgb: 124, 160, 255;
+}
+
+/* ---- Emerald (emerald) ----
+ * Green. The day primary is #1B7A51 rather than the #1F8A5B anchor: #1F8A5B
+ * carries a white label at only 4.3:1, so it is kept for chart marks (outbound)
+ * and the text/fill step goes one darker. Inbound is navy / periwinkle —
+ * classic's steel sat too close to the greens.
+ */
+[data-theme="emerald"] {
+  --primary-rgb: 27, 122, 81;
+  --on-primary-rgb: 255, 255, 255;
+  --info-rgb: 30, 79, 122;
+  --brand-blue-rgb: 55, 114, 73;
+  --orange-rgb: 55, 114, 73;
+  --primary-deep-rgb: 26, 110, 74;
+}
+[data-theme="emerald"][data-theme-mode="dark"] {
+  --primary-rgb: 124, 189, 137;
+  --on-primary-rgb: 8, 16, 11;
+  --info-rgb: 169, 200, 240;
+  --brand-blue-rgb: 106, 174, 123;
+  --orange-rgb: 94, 159, 110;
+  --primary-deep-rgb: 124, 189, 137;
+}
+
+/* ---- Amethyst (violet) ----
+ * Amethyst. Day fills use #6242D6 (white label 6.4:1); the #6D4AE0 anchor
+ * stays the chart colour. Inbound is teal.
+ */
+[data-theme="violet"] {
+  --primary-rgb: 98, 66, 214;
+  --on-primary-rgb: 255, 255, 255;
+  --info-rgb: 11, 107, 111;
+  --brand-blue-rgb: 96, 61, 184;
+  --orange-rgb: 96, 61, 184;
+  --primary-deep-rgb: 96, 61, 184;
+}
+[data-theme="violet"][data-theme-mode="dark"] {
+  --primary-rgb: 167, 139, 250;
+  --on-primary-rgb: 14, 10, 22;
+  --info-rgb: 95, 201, 192;
+  --brand-blue-rgb: 149, 121, 240;
+  --orange-rgb: 139, 111, 230;
+  --primary-deep-rgb: 167, 139, 250;
+}
+
+/* ---- Garnet (wine) ----
+ * Garnet: deep maroon, with steel inbound.
+ */
+[data-theme="wine"] {
+  --primary-rgb: 155, 34, 66;
+  --on-primary-rgb: 255, 255, 255;
+  --info-rgb: 47, 105, 143;
+  --brand-blue-rgb: 155, 34, 66;
+  --orange-rgb: 155, 34, 66;
+  --primary-deep-rgb: 142, 30, 60;
+}
+[data-theme="wine"][data-theme-mode="dark"] {
+  --primary-rgb: 224, 99, 127;
+  --on-primary-rgb: 18, 7, 10;
+  --info-rgb: 129, 178, 210;
+  --brand-blue-rgb: 210, 86, 111;
+  --orange-rgb: 201, 76, 102;
+  --primary-deep-rgb: 224, 99, 127;
+}
