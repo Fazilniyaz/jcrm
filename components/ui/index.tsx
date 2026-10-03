@@ -3,7 +3,9 @@
  * one system — same card chrome, same badge shape, same table rhythm.
  * All colour comes from the Jadvix tokens in globals.css.
  */
+import Link from "next/link";
 import type { Tone } from "@/lib/ui/tone";
+import { Sparkline } from "@/components/charts/Charts";
 
 /*
  * The tone system. Every tint resolves through a CSS variable, so all of it
@@ -306,24 +308,164 @@ export function StatTile({
   t?: Tone;
   icon?: React.ElementType;
 }) {
+  const c = tone[t];
   return (
-    <Card className="p-4">
-      <div className="flex items-start justify-between gap-3">
+    // The tile carries its hue three ways: a rule down the leading edge, a
+    // solid disc under the glyph, and a soft bloom in the far corner. Together
+    // they give a flat card depth without a shadow.
+    <Card className="pk-lift relative overflow-hidden p-4">
+      <span
+        aria-hidden
+        className="absolute inset-y-0 start-0 w-[3px]"
+        style={{ background: c.solid }}
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -end-6 -top-10 h-28 w-28 rounded-full opacity-60 blur-2xl"
+        style={{ background: c.soft }}
+      />
+      <div className="relative flex items-center gap-3.5">
+        {Icon && (
+          <span
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full"
+            style={{
+              background: c.solid,
+              color: c.onSolid,
+              boxShadow: `0 8px 18px -8px ${c.solid}`,
+            }}
+          >
+            <Icon size={20} />
+          </span>
+        )}
         <div className="min-w-0">
           <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted">
             {label}
           </p>
-          <p className="mt-1.5 text-[1.375rem] font-bold leading-none text-heading">{value}</p>
+          <p className="mt-1 text-[1.625rem] font-bold leading-none text-heading">{value}</p>
           {hint && <p className="mt-1.5 text-[0.75rem] text-muted">{hint}</p>}
         </div>
-        {Icon && (
-          <span
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-avatar"
-            style={{ background: tone[t].soft, color: tone[t].text }}
-          >
-            <Icon size={18} />
-          </span>
-        )}
+      </div>
+    </Card>
+  );
+}
+
+/* ----------------------------------------------------------- hero band -- */
+
+/**
+ * The gradient banner at the top of a module.
+ *
+ * One per screen at most: it is the loudest thing the design system owns, and
+ * a second one on the same page turns both into wallpaper. Colour comes from
+ * `.pk-hero` (the measured orange→magenta pair) so it follows the palette.
+ */
+export function HeroBand({
+  eyebrow,
+  title,
+  desc,
+  action,
+}: {
+  eyebrow?: string;
+  title: string;
+  desc?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="pk-hero pk-sheen relative overflow-hidden rounded-card px-6 py-6 sm:px-7">
+      {/* Two faint discs, so the band is not a flat sheet of colour. */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -end-10 -top-16 h-56 w-56 rounded-full"
+        style={{ background: "rgba(255,255,255,0.10)" }}
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -bottom-24 end-24 h-48 w-48 rounded-full"
+        style={{ background: "rgba(255,255,255,0.06)" }}
+      />
+      <div className="relative flex flex-wrap items-center justify-between gap-4">
+        <div className="min-w-0">
+          {eyebrow && (
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.625rem] font-bold uppercase tracking-[0.08em]"
+              style={{ background: "rgba(255,255,255,0.18)" }}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-current opacity-80" />
+              {eyebrow}
+            </span>
+          )}
+          <h2 className="mt-3 text-[1.375rem] font-bold leading-tight">{title}</h2>
+          {desc && <p className="mt-1.5 max-w-xl text-[0.875rem] opacity-90">{desc}</p>}
+        </div>
+        {action}
+      </div>
+    </div>
+  );
+}
+
+/** The button that sits on a HeroBand — inverted, so it reads as the one action. */
+export function HeroAction({ children, href }: { children: React.ReactNode; href: string }) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-card px-4 py-2.5 text-[0.8125rem] font-semibold transition-transform hover:-translate-y-px"
+      style={{ background: "var(--on-hero)", color: "var(--hero-from)" }}
+    >
+      {children}
+    </Link>
+  );
+}
+
+/* ---------------------------------------------------------- trend card -- */
+
+/**
+ * A figure with its recent shape beside it.
+ *
+ * The sparkline is deliberately unlabelled — it is there to say "rising",
+ * "flat" or "falling" at a glance, and anyone who needs the actual series
+ * opens the module the tile links to.
+ */
+export function TrendCard({
+  label,
+  value,
+  delta,
+  data,
+  t = "blue",
+  id,
+}: {
+  label: string;
+  value: string;
+  /** e.g. "+12%" / "-100%". Rendered next to "vs last month". */
+  delta?: string;
+  data: readonly number[];
+  t?: Tone;
+  id: string;
+}) {
+  const c = tone[t];
+  const down = Boolean(delta && delta.trim().startsWith("-"));
+  return (
+    <Card className="p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="flex items-center gap-2 text-[0.8125rem] font-medium text-heading">
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: c.solid }} />
+            {label}
+          </p>
+          <p className="mt-2 text-[1.375rem] font-bold leading-none text-heading">{value}</p>
+          {delta && (
+            <p className="mt-2 text-[0.75rem]">
+              <span
+                className="font-semibold"
+                style={{ color: down ? "rgb(var(--danger-rgb))" : "rgb(var(--success-rgb))" }}
+              >
+                {delta}
+              </span>
+              <span className="text-muted"> vs last month</span>
+            </p>
+          )}
+        </div>
+        <div className="w-28 shrink-0 sm:w-36">
+          <Sparkline data={data} color={c.solid} id={id} height={48} />
+        </div>
       </div>
     </Card>
   );

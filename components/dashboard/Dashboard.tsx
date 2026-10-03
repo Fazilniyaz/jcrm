@@ -22,9 +22,13 @@ import {
   EmptyState,
   ModuleSkeleton,
   SectionLabel,
+  HeroBand,
+  HeroAction,
+  TrendCard,
 } from "@/components/ui";
 import { Bars } from "@/components/charts/Charts";
 import { useStore } from "@/lib/store/StoreProvider";
+import { useNow } from "@/lib/use-now";
 import {
   formatDate,
   initialsOf,
@@ -58,9 +62,62 @@ import {
 
 const num = (n: number) => n.toLocaleString("en-US");
 
+/* ------------------------------------------------------------- trends -- */
+
+const WEEKS = 8;
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Count dates into `weeks` seven-day buckets ending now, oldest first.
+ *
+ * `now` is passed in rather than read here so the whole dashboard shares one
+ * clock reading and the series cannot shift between two tiles on one render.
+ */
+function weeklySeries(dates: readonly (string | undefined)[], now: number): number[] {
+  const out = new Array<number>(WEEKS).fill(0);
+  if (!now) return out;
+  for (const value of dates) {
+    if (!value) continue;
+    const at = Date.parse(value);
+    if (Number.isNaN(at)) continue;
+    const age = Math.floor((now - at) / WEEK_MS);
+    if (age < 0 || age >= WEEKS) continue;
+    out[WEEKS - 1 - age] += 1;
+  }
+  return out;
+}
+
+/** The last bucket against the one before it. Undefined when there is nothing
+ *  to compare against — a made-up "+100%" off a zero base says nothing. */
+function deltaOf(series: readonly number[]): string | undefined {
+  if (series.length < 2) return undefined;
+  const last = series[series.length - 1];
+  const prev = series[series.length - 2];
+  if (prev === 0) return last === 0 ? undefined : "+100%";
+  const pct = Math.round(((last - prev) / prev) * 100);
+  return `${pct >= 0 ? "+" : ""}${pct}%`;
+}
+
+function greetingFor(now: number): string {
+  const hour = new Date(now).getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function longDate(now: number): string {
+  return new Date(now).toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
 /** Everything the tiles and panels need, computed once per state change. */
 function useDashboardData() {
-  const { hydrated, state, settings } = useStore();
+  const { hydrated, state, settings, currentEmployee, currentUser } = useStore();
+  const now = useNow();
 
   return useMemo(() => {
     const employees = scopedEmployees(state);
@@ -83,8 +140,37 @@ function useDashboardData() {
       .sort((a, b) => (a.endDate ?? "").localeCompare(b.endDate ?? ""))
       .slice(0, 6);
 
+    /*
+     * Eight weeks of real buckets, from the only clocks the store keeps: the
+     * last entry on a task's append-only `updatedBy` trail is when it last
+     * moved (so for a Done task, when it was finished), and a project's
+     * `createdAt` is when it started.
+     */
+    const doneSeries = weeklySeries(
+      tasks
+        .filter((t) => t.status === "Done")
+        .map((t) => t.updatedBy.at(-1)?.at ?? t.endDate ?? t.createdAt),
+      now,
+    );
+    const startedSeries = weeklySeries(projects.map((p) => p.createdAt), now);
+    const openSeries = weeklySeries(openTasks.map((t) => t.createdAt), now);
+
+    const name = (currentEmployee?.name ?? currentUser ?? "there").trim();
+
     return {
       hydrated,
+      now,
+      firstName: name.split(/\s+/)[0] || "there",
+      trend: {
+        done: doneSeries,
+        doneTotal: doneSeries.reduce((a, b) => a + b, 0),
+        doneDelta: deltaOf(doneSeries),
+        started: startedSeries,
+        startedTotal: startedSeries.reduce((a, b) => a + b, 0),
+        startedDelta: deltaOf(startedSeries),
+        open: openSeries,
+        openDelta: deltaOf(openSeries),
+      },
       branch: settings.defaultBranch,
       employees,
       projects,
@@ -99,7 +185,7 @@ function useDashboardData() {
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
         .slice(0, 5),
     };
-  }, [hydrated, state, settings.defaultBranch]);
+  }, [hydrated, state, settings.defaultBranch, now, currentEmployee, currentUser]);
 }
 
 export default function Dashboard() {
@@ -123,7 +209,18 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="pk-stagger space-y-4">
+      <HeroBand
+        eyebrow="At a glance"
+        title={`${greetingFor(d.now)}, ${d.firstName}`}
+        desc={`${longDate(d.now)} — ${num(d.openTasks.length)} open ${
+          d.openTasks.length === 1 ? "task" : "tasks"
+        } across ${num(d.liveProjects.length)} live ${
+          d.liveProjects.length === 1 ? "project" : "projects"
+        }.`}
+        action={<HeroAction href="tasks">Open the board</HeroAction>}
+      />
+
       <Grid cols={4}>
         <StatTile
           label="Live projects"
@@ -152,6 +249,35 @@ export default function Dashboard() {
           hint="Accounts on the books"
           t="slate"
           icon={Handshake}
+        />
+      </Grid>
+
+      {/* The three numbers worth watching over time, each with its recent
+          shape beside it. Series are the real weekly buckets from the store. */}
+      <Grid cols={3}>
+        <TrendCard
+          id="trend-tasks"
+          label="Tasks completed"
+          value={num(d.trend.doneTotal)}
+          delta={d.trend.doneDelta}
+          data={d.trend.done}
+          t="sky"
+        />
+        <TrendCard
+          id="trend-projects"
+          label="Projects started"
+          value={num(d.trend.startedTotal)}
+          delta={d.trend.startedDelta}
+          data={d.trend.started}
+          t="blue"
+        />
+        <TrendCard
+          id="trend-open"
+          label="Open workload"
+          value={num(d.openTasks.length)}
+          delta={d.trend.openDelta}
+          data={d.trend.open}
+          t="orange"
         />
       </Grid>
 
