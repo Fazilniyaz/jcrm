@@ -11,6 +11,7 @@ import {
 } from "@/lib/modules";
 import { tone } from "@/components/ui";
 import type { Tone } from "@/lib/ui/tone";
+import type { IconType } from "@/lib/ui/icon";
 
 /*
  * A hue per menu section, so a colour comes to mean a place — the same tint is
@@ -36,7 +37,7 @@ function NavRow({
 }: {
   href: string;
   label: string;
-  Icon: React.ElementType;
+  Icon: IconType;
   t: Tone;
   active: boolean;
   onClick: () => void;

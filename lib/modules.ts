@@ -20,7 +20,9 @@ import {
   Activity,
   ClipboardCheck,
   Inbox,
+  Orbit,
 } from "lucide-react";
+import type { IconType } from "./ui/icon";
 
 export type ModuleSlug =
   | "dashboard"
@@ -43,14 +45,15 @@ export type ModuleSlug =
   | "clients"
   | "monitor"
   | "checklist"
-  | "requests";
+  | "requests"
+  | "playground";
 
 export type ModuleDef = {
   slug: ModuleSlug;
   label: string;
   /** Sidebar grouping, mirroring how the Valex menu is sectioned. */
   group: "Overview" | "Work" | "People" | "Finance" | "Organisation" | "System";
-  icon: React.ElementType;
+  icon: IconType;
   /** Sub-line under the page title. */
   blurb: string;
 };
@@ -203,6 +206,13 @@ export const MODULES: readonly ModuleDef[] = [
     icon: Settings,
     blurb: "Profile, workspace and security preferences.",
   },
+  {
+    slug: "playground",
+    label: "Your Playground",
+    group: "Overview",
+    icon: Orbit,
+    blurb: "The whole office on one floor — who is here, how they are doing, and what they are on.",
+  },
 ];
 
 export const ALL_MODULES = MODULES.map((m) => m.slug) as readonly ModuleSlug[];
@@ -247,6 +257,9 @@ export const OPTIONAL_MODULES: readonly ModuleSlug[] = [
   // Appended, never inserted — see the bitmask warning above. Grantable rather
   // than mandatory so it can be switched on for the QC portals only.
   "checklist",
+  // Also appended. The roster floor: super-admin territory, so it is grantable
+  // rather than mandatory and off for everyone until switched on.
+  "playground",
 ];
 
 export function isMandatory(slug: ModuleSlug): boolean {

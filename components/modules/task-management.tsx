@@ -78,6 +78,7 @@ import {
 } from "@/lib/store/types";
 import TaskForm from "./TaskForm";
 import { QcHistory } from "./checklist";
+import type { IconType } from "@/lib/ui/icon";
 import SubtaskList from "./SubtaskList";
 import TaskStatusControl from "./TaskStatusControl";
 import TaskAttachments, { AttachmentButton } from "./TaskAttachments";
@@ -1144,7 +1145,7 @@ function SubitemRows({
 
 /* ------------------------------------------------------------ workspace -- */
 
-type PanelTab = { key: string; label: string; icon: React.ElementType };
+type PanelTab = { key: string; label: string; icon: IconType };
 
 /** The Monday-style tab strip inside a workspace panel: Details / Files / Activity. */
 function PanelTabs({

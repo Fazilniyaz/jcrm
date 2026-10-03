@@ -21,6 +21,7 @@ import {
   Underline as UnderlineIcon,
   Undo2,
 } from "lucide-react";
+import type { IconType } from "@/lib/ui/icon";
 
 /*
  * Rich text: the editor, and the reader.
@@ -158,7 +159,7 @@ function ToolbarButton({
   disabled = false,
   onClick,
 }: {
-  icon: React.ElementType;
+  icon: IconType;
   label: string;
   active?: boolean;
   disabled?: boolean;

@@ -552,3 +552,30 @@ export type Notification = {
   projectId: string | null;
   createdAt: string;
 };
+
+/* ------------------------------------------------------------ playground -- */
+
+/** One person on the Playground floor. Composed server-side in one request. */
+export type PlaygroundPerson = {
+  id: string;
+  name: string;
+  empId: string;
+  email: string;
+  roles: Role[];
+  empType: EmpType;
+  empStatus: string;
+  currentStatus: string;
+  branch: string | null;
+  tone: ToneApi;
+  kra: number;
+  phone: string | null;
+  joinedAt: string;
+  openTasks: number;
+  doneTasks: number;
+  projects: { id: string; name: string; code: string | null; state: string; role: string }[];
+};
+
+export type PlaygroundRoster = {
+  people: PlaygroundPerson[];
+  stats: { total: number; avgKra: number; branches: string[]; roles: string[] };
+};

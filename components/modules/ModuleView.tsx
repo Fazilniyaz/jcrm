@@ -50,6 +50,7 @@ const Leads = dynamic(() => import("./leads").then((m) => m.Leads), { loading })
 const Branches = dynamic(() => import("./org-live").then((m) => m.Branches), { loading });
 const Clients = dynamic(() => import("./clients").then((m) => m.Clients), { loading });
 const Settings = dynamic(() => import("./system").then((m) => m.Settings), { loading });
+
 const Calendar = dynamic(() => import("./calendar").then((m) => m.Calendar), { loading });
 const Monitor = dynamic(() => import("./monitor").then((m) => m.Monitor), { loading });
 const Clock = dynamic(() => import("./clock").then((m) => m.Clock), { loading });
@@ -125,6 +126,7 @@ export default function ModuleView({ slug, user, role, portal, accessEditor }: M
       return <Monitor />;
     case "settings":
       return <Settings user={user} role={role} accessEditor={accessEditor} />;
+
     default:
       return null;
   }

@@ -71,6 +71,7 @@ import {
 import EmployeeForm from "./EmployeeForm";
 import { EmployeeModuleAccess } from "./EmployeeModuleAccess";
 import KraHistory from "./KraHistory";
+import type { IconType } from "@/lib/ui/icon";
 
 type SortKey = "name" | "kra" | "joined" | "load";
 
@@ -665,7 +666,7 @@ function ContactRow({
   label,
   value,
 }: {
-  icon: React.ElementType;
+  icon: IconType;
   label: string;
   value: string;
 }) {

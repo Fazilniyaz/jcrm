@@ -6,6 +6,7 @@
 import Link from "next/link";
 import type { Tone } from "@/lib/ui/tone";
 import { Sparkline } from "@/components/charts/Charts";
+import type { IconType } from "@/lib/ui/icon";
 
 /*
  * The tone system. Every tint resolves through a CSS variable, so all of it
@@ -306,7 +307,7 @@ export function StatTile({
   value: string;
   hint?: string;
   t?: Tone;
-  icon?: React.ElementType;
+  icon?: IconType;
 }) {
   const c = tone[t];
   return (
@@ -571,7 +572,7 @@ export function Button({
 }: {
   children: React.ReactNode;
   variant?: "primary" | "ghost" | "danger";
-  icon?: React.ElementType;
+  icon?: IconType;
   onClick?: () => void;
   type?: "button" | "submit";
   disabled?: boolean;
@@ -611,7 +612,7 @@ export function IconButton({
   disabled = false,
   spinning = false,
 }: {
-  icon: React.ElementType;
+  icon: IconType;
   label: string;
   onClick?: () => void;
   tone?: Tone;
@@ -797,7 +798,7 @@ export function EmptyState({
   desc,
   action,
 }: {
-  icon?: React.ElementType;
+  icon?: IconType;
   title: string;
   desc?: string;
   action?: React.ReactNode;

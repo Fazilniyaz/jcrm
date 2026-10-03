@@ -32,6 +32,7 @@ import { ConfirmDialog } from "@/components/ui/overlay";
 import { useStore } from "@/lib/store/StoreProvider";
 import { notificationsFor, relativeTime } from "@/lib/store/selectors";
 import { NOTIFICATION_TONE, type NotificationKind } from "@/lib/store/types";
+import type { IconType } from "@/lib/ui/icon";
 
 /*
  * The signed-in portal's inbox.
@@ -42,7 +43,7 @@ import { NOTIFICATION_TONE, type NotificationKind } from "@/lib/store/types";
  * person.
  */
 
-const KIND_ICON: Record<NotificationKind, React.ElementType> = {
+const KIND_ICON: Record<NotificationKind, IconType> = {
   "task-assigned": UserPlus,
   "qc-approved": ClipboardCheck,
   "qc-corrections": ClipboardCheck,

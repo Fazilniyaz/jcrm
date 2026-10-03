@@ -17,6 +17,7 @@ import type {
   MasterLoginResponse,
   MeResponse,
   ModuleAccessMatrix,
+  PlaygroundRoster,
   Notification,
   Profile,
   Project,
@@ -216,6 +217,7 @@ export const api = createApi({
     "ModuleAccess",
     "Workspace",
     "Notification",
+    "Playground",
   ],
   endpoints: (build) => ({
     /* ---------------------------------------------------------- auth -- */
@@ -782,6 +784,19 @@ export const api = createApi({
       transformResponse: unwrap,
     }),
 
+    /* ---------------------------------------------------- playground -- */
+
+    /*
+     * The office roster. One request draws the whole floor — the server
+     * composes people, their accepted project memberships and their task
+     * tallies, so this does not fan out per person.
+     */
+    playground: build.query<PlaygroundRoster, void>({
+      query: () => "/playground",
+      transformResponse: unwrap,
+      providesTags: ["Playground"],
+    }),
+
     moduleAccessMatrix: build.query<ModuleAccessMatrix, void>({
       query: () => "/settings/module-access",
       transformResponse: unwrap,
@@ -896,6 +911,7 @@ export const {
   useGetProfileQuery,
   useUpdateProfileMutation,
   useChangePasswordMutation,
+  usePlaygroundQuery,
   useModuleAccessMatrixQuery,
   useSetModuleAccessMutation,
   useGetWorkspaceQuery,

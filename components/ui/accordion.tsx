@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import type { IconType } from "@/lib/ui/icon";
 
 /*
  * A collapsible section, styled as a Card so a stack of them reads as one
@@ -22,7 +23,7 @@ export function AccordionSection({
 }: {
   title: string;
   desc?: string;
-  icon?: React.ElementType;
+  icon?: IconType;
   /** Right-aligned in the header — a count, a status, anything short. */
   badge?: React.ReactNode;
   defaultOpen?: boolean;
