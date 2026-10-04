@@ -269,6 +269,8 @@ export function toUiProject(project: ApiProject): UiProject {
     startDate: toDay(project.startDate),
     endDate: toOptionalDay(project.dueDate),
     assignedEmployees: project.assignedEmployees,
+    assignedTeams: project.teamIds ?? [],
+    requireAcceptance: project.requireAcceptance ?? null,
     reportTo: project.reportTo,
     status: PROJECT_STATE_TO_UI[project.state],
     plan: project.plan.map<Milestone>((m) => ({
@@ -365,6 +367,7 @@ export function toUiTask(task: ApiTask, nameOf: (id: string) => string): UiTask 
     priority: task.priorityLevel,
     projectIds: task.projectIds,
     assignedTo: task.assigneeIds,
+    assignedTeams: task.teamIds ?? [],
     reportTo: task.reportToIds,
     createdBy: nameOf(task.createdById),
     createdAt: toDay(task.createdAt),

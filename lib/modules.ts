@@ -21,6 +21,7 @@ import {
   ClipboardCheck,
   Inbox,
   Orbit,
+  UsersRound,
 } from "lucide-react";
 import type { IconType } from "./ui/icon";
 
@@ -46,7 +47,8 @@ export type ModuleSlug =
   | "monitor"
   | "checklist"
   | "requests"
-  | "playground";
+  | "playground"
+  | "teams";
 
 export type ModuleDef = {
   slug: ModuleSlug;
@@ -207,6 +209,13 @@ export const MODULES: readonly ModuleDef[] = [
     blurb: "Profile, workspace and security preferences.",
   },
   {
+    slug: "teams",
+    label: "Teams",
+    group: "People",
+    icon: UsersRound,
+    blurb: "Named groups of people you can put on a project or a task in one go.",
+  },
+  {
     slug: "playground",
     label: "Your Playground",
     group: "Overview",
@@ -260,6 +269,9 @@ export const OPTIONAL_MODULES: readonly ModuleSlug[] = [
   // Also appended. The roster floor: super-admin territory, so it is grantable
   // rather than mandatory and off for everyone until switched on.
   "playground",
+  // Appended too. Managers and team leaders get it from their role; everyone
+  // else needs it granted.
+  "teams",
 ];
 
 export function isMandatory(slug: ModuleSlug): boolean {

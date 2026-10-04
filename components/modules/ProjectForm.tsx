@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/form";
 import { RichTextEditor, hasRichText } from "@/components/ui/RichText";
 import { useStore } from "@/lib/store/StoreProvider";
+import { useListTeamsQuery } from "@/lib/api/api";
+import { useSession } from "@/lib/api/session";
 import { initialsOf } from "@/lib/store/selectors";
 import { PROJECT_STATUSES, ROLE_TONE, type Project, type ProjectStatus } from "@/lib/store/types";
 
@@ -33,8 +35,11 @@ type Draft = {
   startDate: string;
   endDate: string;
   assignedEmployees: string[];
+  assignedTeams: string[];
   reportTo: string[];
   status: ProjectStatus;
+  /** "default" follows the workspace setting; the other two override it. */
+  acceptance: "default" | "required" | "direct";
 };
 
 function draftFrom(project: Project | undefined, nextCode: string): Draft {
@@ -48,8 +53,15 @@ function draftFrom(project: Project | undefined, nextCode: string): Draft {
     startDate: project?.startDate ?? "",
     endDate: project?.endDate ?? "",
     assignedEmployees: project?.assignedEmployees ?? [],
+    assignedTeams: project?.assignedTeams ?? [],
     reportTo: project?.reportTo ?? [],
     status: project?.status ?? "Planning",
+    acceptance:
+      project?.requireAcceptance == null
+        ? "default"
+        : project.requireAcceptance
+          ? "required"
+          : "direct",
   };
 }
 
@@ -81,6 +93,28 @@ export default function ProjectForm({
   const assignable = useMemo(
     () => employees.filter((e) => !e.isOwner && e.role !== "Super Admin"),
     [employees],
+  );
+
+  const session = useSession();
+  const isSuperAdmin =
+    session.status === "user" &&
+    (session.user.isOwner || session.user.roles.includes("superAdmin"));
+
+  // Skipped on the demo portals, where there is no API to ask.
+  const { data: teams = [] } = useListTeamsQuery(undefined, {
+    skip: session.status !== "user",
+  });
+
+  const teamOptions: Option[] = useMemo(
+    () =>
+      teams.map((t) => ({
+        value: t.id,
+        label: t.name,
+        hint: `${t.memberIds.length} ${t.memberIds.length === 1 ? "person" : "people"}`,
+        initials: t.name.slice(0, 2).toUpperCase(),
+        tone: (t.tone in ROLE_TONE ? ROLE_TONE.Developer : "blue") as Option["tone"],
+      })),
+    [teams],
   );
 
   const peopleOptions: Option[] = useMemo(
@@ -153,6 +187,10 @@ export default function ProjectForm({
       startDate: draft.startDate,
       endDate: draft.endDate || undefined,
       assignedEmployees: draft.assignedEmployees,
+      assignedTeams: draft.assignedTeams,
+      // "default" means store nothing and let the workspace setting decide.
+      requireAcceptance:
+        draft.acceptance === "default" ? null : draft.acceptance === "required",
       reportTo: draft.reportTo,
       status: draft.status,
       clientId: clients.find((c) => c.name === draft.client.trim())?.id,
@@ -292,6 +330,38 @@ export default function ProjectForm({
             error={errors.assignedEmployees}
           />
         </Span>
+
+        <Span>
+          <MultiSelect
+            label="Assigned team"
+            value={draft.assignedTeams}
+            onChange={(v) => set("assignedTeams", v)}
+            options={teamOptions}
+            placeholder="Put a whole team on this"
+            hint="Optional. Everyone on the team is added as a member — picking people above as well is fine, nobody is added twice."
+            emptyText="No teams yet — create one in the Teams module"
+          />
+        </Span>
+
+        {/*
+          Who may change this: a super admin only. The API refuses it from
+          anyone else, so offering the control would be offering a 403.
+        */}
+        {isSuperAdmin && (
+          <Span>
+            <SelectInput
+              label="Joining this project"
+              value={draft.acceptance}
+              onChange={(v) => set("acceptance", v as Draft["acceptance"])}
+              options={[
+                { value: "default", label: "Follow the workspace setting" },
+                { value: "required", label: "Needs the person to accept it" },
+                { value: "direct", label: "Add them straight away, no acceptance" },
+              ]}
+              hint="Acceptance puts an invitation in their Requests module. Without it they are placed on the project immediately and simply told."
+            />
+          </Span>
+        )}
 
         <Span>
           <MultiSelect

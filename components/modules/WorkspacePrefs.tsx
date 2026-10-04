@@ -47,6 +47,24 @@ export default function WorkspacePrefs() {
         )}
       </div>
 
+      {/*
+        The org-wide default. A project can still override it for itself from
+        the project form, which is why this is worded as the default rather
+        than as the rule.
+      */}
+      <div className="rounded-sm border border-line p-3">
+        <SwitchField
+          label="Ask people before putting them on a project"
+          desc={
+            settings.requireProjectAcceptance
+              ? "They get an invitation in Requests and join once they accept it."
+              : "They are added to the project straight away and simply told about it."
+          }
+          checked={settings.requireProjectAcceptance}
+          onChange={(v) => setSettings({ requireProjectAcceptance: v })}
+        />
+      </div>
+
       <div className="rounded-sm bg-subtle p-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">

@@ -50,6 +50,7 @@ const Leads = dynamic(() => import("./leads").then((m) => m.Leads), { loading })
 const Branches = dynamic(() => import("./org-live").then((m) => m.Branches), { loading });
 const Clients = dynamic(() => import("./clients").then((m) => m.Clients), { loading });
 const Settings = dynamic(() => import("./system").then((m) => m.Settings), { loading });
+const Teams = dynamic(() => import("./teams").then((m) => m.Teams), { loading });
 // WebGL, so client-only: three.js reaches for `window` at module scope and
 // throws if it is evaluated on the server.
 const Playground = dynamic(() => import("./playground").then((m) => m.Playground), {
@@ -134,6 +135,8 @@ export default function ModuleView({ slug, user, role, portal, accessEditor }: M
       return <Settings user={user} role={role} accessEditor={accessEditor} />;
     case "playground":
       return <Playground />;
+    case "teams":
+      return <Teams />;
 
     default:
       /*

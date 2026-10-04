@@ -24,6 +24,6 @@ export function emptyState(): StoreState {
     clients: [],
     leads: [],
     calendarEvents: [],
-    settings: { autoEmployeeId: true, defaultBranch: null },
+    settings: { autoEmployeeId: true, requireProjectAcceptance: true, defaultBranch: null },
   };
 }

@@ -109,6 +109,13 @@ export type Project = {
   /** Employee ids this project reports into — managers, leads, QC. */
   reportTo: string[];
   status: ProjectStatus;
+  /** Teams put on this project. People are expanded server-side on assignment. */
+  assignedTeams?: string[];
+  /**
+   * Does joining need the person's acceptance?
+   * Undefined follows the workspace default; a boolean overrides it.
+   */
+  requireAcceptance?: boolean | null;
   /** Client-facing delivery plan, ordered by due date. */
   plan: Milestone[];
   /** Configuration values for this project. Never shown to the client. */
@@ -482,6 +489,8 @@ export type Task = {
   /** A task can serve more than one project. */
   projectIds: string[];
   assignedTo: string[];
+  /** Teams put on this task. People are expanded server-side on assignment. */
+  assignedTeams?: string[];
   reportTo: string[];
   createdBy: string;
   createdAt: string;
@@ -664,6 +673,13 @@ export const NOTIFICATION_TONE: Record<NotificationKind, Tone> = {
 export type WorkspaceSettings = {
   /** On: employee IDs are generated from the highest existing number. */
   autoEmployeeId: boolean;
+  /**
+   * Does joining a project need the person's acceptance?
+   *
+   * The org-wide default. A project can override it for itself — see
+   * Project.requireAcceptance.
+   */
+  requireProjectAcceptance: boolean;
   /**
    * Branch the workspace is scoped to, by branch name. Null is the whole group.
    *

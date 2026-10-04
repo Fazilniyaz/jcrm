@@ -214,6 +214,9 @@ export default function ApiStoreProvider({ children }: { children: React.ReactNo
 
     const settings = {
       autoEmployeeId: workspaceQuery.data?.settings.autoEmployeeId ?? local.settings.autoEmployeeId,
+      requireProjectAcceptance:
+        workspaceQuery.data?.settings.requireProjectAcceptance ??
+        local.settings.requireProjectAcceptance,
       /*
        * The branch scope is an ADMIN view filter, and only an admin gets it.
        *
@@ -316,6 +319,10 @@ export default function ApiStoreProvider({ children }: { children: React.ReactNo
             name: input.name,
             managerIds: input.reportTo ?? [],
             memberIds: input.assignedEmployees ?? [],
+            // Teams are expanded into memberships server-side; the ids are
+            // kept so the project can show which teams it was staffed from.
+            teamIds: input.assignedTeams ?? [],
+            requireAcceptance: input.requireAcceptance ?? null,
           }),
           "create project",
         );
@@ -342,6 +349,7 @@ export default function ApiStoreProvider({ children }: { children: React.ReactNo
             title: input.title,
             projectIds: input.projectIds,
             assigneeIds: input.assignedTo ?? [],
+            teamIds: input.assignedTeams ?? [],
           }),
           "create task",
         );

@@ -291,6 +291,10 @@ export type Project = {
   startDate: string | null;
   dueDate: string | null;
   plan: Milestone[];
+  /** Teams on this project — a reference; the people are in `members`. */
+  teamIds: string[];
+  /** Null means "follow the workspace default". */
+  requireAcceptance: boolean | null;
   createdById: string;
   createdAt: string;
   updatedAt: string;
@@ -364,6 +368,8 @@ export type Task = {
   taskCode: string | null;
   assigneeId: string | null;
   assigneeIds: string[];
+  /** Teams on this task — a reference; the people are in `assigneeIds`. */
+  teamIds: string[];
   reportToIds: string[];
   createdById: string;
   state: TaskStateApi;
@@ -504,6 +510,8 @@ export type Workspace = {
   company: { id: string; name: string; headBranch: string };
   settings: {
     autoEmployeeId: boolean;
+    /** Org-wide default for whether joining a project needs acceptance. */
+    requireProjectAcceptance: boolean;
     defaultBranch: string | null;
     defaultBranchExplicit: boolean;
     headBranch: string | null;
@@ -578,4 +586,39 @@ export type PlaygroundPerson = {
 export type PlaygroundRoster = {
   people: PlaygroundPerson[];
   stats: { total: number; avgKra: number; branches: string[]; roles: string[] };
+};
+
+/* ----------------------------------------------------------------- teams -- */
+
+/** A person as a team picker needs them — enough to show a row, no more. */
+export type TeamMember = {
+  id: string;
+  name: string;
+  empId: string;
+  email: string;
+  tone: ToneApi;
+  roles: Role[];
+  kra: number;
+};
+
+export type Team = {
+  id: string;
+  name: string;
+  description: string | null;
+  tone: ToneApi;
+  leadId: string | null;
+  memberIds: string[];
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Resolved by the list endpoint, so a picker needs one request. */
+  members: TeamMember[];
+};
+
+export type TeamInput = {
+  name: string;
+  description?: string | null;
+  tone?: string;
+  leadId?: string | null;
+  memberIds: string[];
 };

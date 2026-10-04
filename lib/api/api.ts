@@ -18,6 +18,8 @@ import type {
   MeResponse,
   ModuleAccessMatrix,
   PlaygroundRoster,
+  Team,
+  TeamInput,
   Notification,
   Profile,
   Project,
@@ -218,6 +220,7 @@ export const api = createApi({
     "Workspace",
     "Notification",
     "Playground",
+    "Team",
   ],
   endpoints: (build) => ({
     /* ---------------------------------------------------------- auth -- */
@@ -784,6 +787,31 @@ export const api = createApi({
       transformResponse: unwrap,
     }),
 
+    /* --------------------------------------------------------- teams -- */
+
+    listTeams: build.query<Team[], void>({
+      query: () => "/teams",
+      transformResponse: unwrap,
+      providesTags: ["Team"],
+    }),
+    createTeam: build.mutation<Team, TeamInput>({
+      query: (body) => ({ url: "/teams", method: "POST", body }),
+      transformResponse: unwrap,
+      invalidatesTags: ["Team"],
+    }),
+    updateTeam: build.mutation<Team, { id: string; patch: Partial<TeamInput> }>({
+      query: ({ id, patch }) => ({ url: `/teams/${id}`, method: "PATCH", body: patch }),
+      transformResponse: unwrap,
+      invalidatesTags: ["Team"],
+    }),
+    deleteTeam: build.mutation<{ id: string }, string>({
+      query: (id) => ({ url: `/teams/${id}`, method: "DELETE" }),
+      transformResponse: unwrap,
+      // Deleting a team detaches it from projects and tasks server-side, so
+      // those lists are stale too.
+      invalidatesTags: ["Team", "ProjectList", "TaskList"],
+    }),
+
     /* ---------------------------------------------------- playground -- */
 
     /*
@@ -911,6 +939,10 @@ export const {
   useGetProfileQuery,
   useUpdateProfileMutation,
   useChangePasswordMutation,
+  useListTeamsQuery,
+  useCreateTeamMutation,
+  useUpdateTeamMutation,
+  useDeleteTeamMutation,
   usePlaygroundQuery,
   useModuleAccessMatrixQuery,
   useSetModuleAccessMutation,

@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/form";
 import { RichTextEditor, hasRichText } from "@/components/ui/RichText";
 import { useStore } from "@/lib/store/StoreProvider";
+import { useListTeamsQuery } from "@/lib/api/api";
+import { useSession } from "@/lib/api/session";
 import { clampScore, initialsOf, itemPoints } from "@/lib/store/selectors";
 import {
   PRIORITIES,
@@ -40,6 +42,7 @@ type Draft = {
   priority: number;
   projectIds: string[];
   assignedTo: string[];
+  assignedTeams: string[];
   reportTo: string[];
   startDate: string;
   endDate: string;
@@ -65,6 +68,7 @@ function draftFrom(task: Task | undefined, nextCode: string): Draft {
     priority: task?.priority ?? 3,
     projectIds: task?.projectIds ?? [],
     assignedTo: task?.assignedTo ?? [],
+    assignedTeams: task?.assignedTeams ?? [],
     reportTo: task?.reportTo ?? [],
     startDate: task?.startDate ?? "",
     endDate: task?.endDate ?? "",
@@ -119,6 +123,23 @@ export default function TaskForm({
     setDraft((d) => ({ ...d, [key]: value }));
     setErrors((e) => (e[key] ? { ...e, [key]: "" } : e));
   };
+
+  const session = useSession();
+  // Skipped on the demo portals, where there is no API to ask.
+  const { data: teams = [] } = useListTeamsQuery(undefined, {
+    skip: session.status !== "user",
+  });
+
+  const teamOptions: Option[] = useMemo(
+    () =>
+      teams.map((t) => ({
+        value: t.id,
+        label: t.name,
+        hint: `${t.memberIds.length} ${t.memberIds.length === 1 ? "person" : "people"}`,
+        initials: t.name.slice(0, 2).toUpperCase(),
+      })),
+    [teams],
+  );
 
   const peopleOptions: Option[] = useMemo(
     () =>
@@ -208,6 +229,7 @@ export default function TaskForm({
       priority: draft.priority,
       projectIds: draft.projectIds,
       assignedTo: draft.assignedTo,
+      assignedTeams: draft.assignedTeams,
       reportTo: draft.reportTo,
       startDate: draft.startDate,
       endDate: draft.endDate || undefined,
@@ -332,6 +354,18 @@ export default function TaskForm({
             options={peopleOptions}
             placeholder="Optional — choose one or more people"
             error={errors.assignedTo}
+          />
+        </Span>
+
+        <Span>
+          <MultiSelect
+            label="Assigned team"
+            value={draft.assignedTeams}
+            onChange={(v) => set("assignedTeams", v)}
+            options={teamOptions}
+            placeholder="Put a whole team on this"
+            hint="Optional. Everyone on the team becomes an assignee — they still have to be on the project, same as anyone picked by name."
+            emptyText="No teams yet — create one in the Teams module"
           />
         </Span>
 
