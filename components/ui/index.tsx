@@ -72,11 +72,18 @@ export function Card({
   children: React.ReactNode;
   className?: string;
 }) {
-  // Flat: a plain white block on an off-white ground — no border, no shadow.
-  // The separation comes from the page being off-white against the card's
-  // white; at this density, adding a border and shadow to every card turns the
-  // screen busy. (Matches the Ropix reference surface.)
-  return <div className={`rounded-card bg-card text-text ${className}`}>{children}</div>;
+  /*
+   * A hairline and a soft shadow, not a flat block.
+   *
+   * The flat version came from a reference surface with far fewer cards on
+   * screen. At this density — stat tiles, panels and a table on one page — the
+   * ground alone did not separate them and the page read as one sheet.
+   */
+  return (
+    <div className={`rounded-card border border-line bg-card text-text shadow-card ${className}`}>
+      {children}
+    </div>
+  );
 }
 
 export function CardHeader({

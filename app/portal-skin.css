@@ -83,13 +83,19 @@
   --dark-rgb: 17, 24, 39;
 
   /* --- ground and chrome ------------------------------------------------ */
-  --body-bg-rgb: 248, 249, 250;
-  --body-bg-rgb2: 248, 249, 250;
-  --default-body-bg-color: #f8f9fa;
-  --default-background: #f8f9fa;
+  /*
+   * The ground is pulled down from #f8f9fa so a white card reads as a distinct
+   * object rather than a slightly different shade of the page. Flat-on-flat was
+   * the complaint: at 1.5% separation the cards genuinely disappeared.
+   */
+  --body-bg-rgb: 237, 240, 244;
+  --body-bg-rgb2: 237, 240, 244;
+  --default-body-bg-color: #edf0f4;
+  --default-background: #edf0f4;
   --custom-white: #ffffff; /* the card, and what soft washes mix against */
   --custom-black: #000000;
-  --custom-bg-color: #f8f9fa;
+  /* Sunk surfaces — table heads, summary strips, inset panels. */
+  --custom-bg-color: #f4f6f9;
 
   /*
    * Two levels of text, not three — the reference surface has a grey body and
@@ -97,29 +103,35 @@
    * ground and 5.13:1 on a white card, so the body colour carries small type
    * safely; going lighter for a third "muted" level would not.
    */
-  --default-text-color: #6b7280;
-  --card-title-color: #111827;
-  --text-muted: #6b7280;
-  --default-border: #ededed;
-  --bootstrap-card-border: #ededed;
-  --list-hover-focus-bg: #f3f4f6;
-  --input-border: #e5e7eb;
+  /* Body text darkened a step: #6b7280 on a white card is 5.13:1, which is
+     fine for a label and thin for a dense table read all day. */
+  --default-text-color: #434b57;
+  --card-title-color: #0f172a;
+  --text-muted: #64707f;
+  /* A line you can actually see. #ededed vanished against the old ground. */
+  --default-border: #d9dfe7;
+  --bootstrap-card-border: #d9dfe7;
+  --list-hover-focus-bg: #eef1f6;
+  --input-border: #cbd3de;
   --form-control-bg: #ffffff;
 
   --menu-bg: #ffffff;
-  --menu-prime-color: #6b7280;
-  --menu-category-color: #9ca3af;
-  --menu-border-color: #ededed;
+  --menu-prime-color: #4b5563;
+  --menu-category-color: #8a95a5;
+  --menu-border-color: #d9dfe7;
   --header-bg: #ffffff;
-  --header-prime-color: #6b7280;
-  --header-border-color: #ededed;
+  --header-prime-color: #4b5563;
+  --header-border-color: #d9dfe7;
 
   /*
-   * Cards are FLAT — no shadow at all. Separation comes from the ground being
-   * off white against the card's white. These two are for the things that
-   * genuinely float above the page.
+   * Cards carry a hairline AND a shadow now.
+   *
+   * The flat treatment was borrowed from a reference surface with far fewer
+   * cards on screen. At this density — four stat tiles, two panels and a table
+   * per page — "separation comes from the ground" stopped being true and the
+   * page read as one undifferentiated sheet.
    */
-  --card-box-shadow: none;
+  --card-box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.08);
   --pop-box-shadow: 0 10px 30px rgba(17, 24, 39, 0.12);
   /* The sidebar is the one piece of chrome that casts a shadow rather than
      drawing a border. */
@@ -171,32 +183,34 @@
   --light-rgb: 42, 46, 53;
   --dark-rgb: 243, 244, 246;
 
-  --body-bg-rgb: 18, 20, 23;
-  --body-bg-rgb2: 18, 20, 23;
-  --default-body-bg-color: #121417;
-  --default-background: #1f2329;
-  --custom-white: #1a1d21; /* the dark card — soft washes mix against this */
+  /* Same move in reverse: the ground drops and the card lifts, so the card is
+     the lighter object instead of being a shade of the page. */
+  --body-bg-rgb: 13, 15, 18;
+  --body-bg-rgb2: 13, 15, 18;
+  --default-body-bg-color: #0d0f12;
+  --default-background: #1b1f26;
+  --custom-white: #1b1f26; /* the dark card — soft washes mix against this */
   --custom-black: #ffffff;
-  --custom-bg-color: #1f2329;
+  --custom-bg-color: #23282f;
 
-  --default-text-color: #d1d5db;
-  --card-title-color: #f3f4f6;
-  --text-muted: #9ca3af;
-  --default-border: #2b3039;
-  --bootstrap-card-border: #2b3039;
-  --list-hover-focus-bg: rgba(255, 255, 255, 0.06);
-  --input-border: #343a44;
-  --form-control-bg: #15181c;
+  --default-text-color: #cfd6e0;
+  --card-title-color: #f6f8fa;
+  --text-muted: #96a1b0;
+  --default-border: #333a45;
+  --bootstrap-card-border: #333a45;
+  --list-hover-focus-bg: rgba(255, 255, 255, 0.07);
+  --input-border: #3d4551;
+  --form-control-bg: #14171c;
 
-  --menu-bg: #1a1d21;
-  --menu-prime-color: #9ca3af;
-  --menu-category-color: #6b7280;
-  --menu-border-color: #2b3039;
-  --header-bg: #1a1d21;
-  --header-prime-color: #9ca3af;
-  --header-border-color: #2b3039;
+  --menu-bg: #15181d;
+  --menu-prime-color: #a8b2c0;
+  --menu-category-color: #76818f;
+  --menu-border-color: #333a45;
+  --header-bg: #15181d;
+  --header-prime-color: #a8b2c0;
+  --header-border-color: #333a45;
 
-  --card-box-shadow: none;
+  --card-box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
   --pop-box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
   --rail-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
   --nav-active-bg: rgba(255, 255, 255, 0.08);
