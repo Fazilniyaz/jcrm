@@ -491,6 +491,8 @@ export type Task = {
   assignedTo: string[];
   /** Teams put on this task. People are expanded server-side on assignment. */
   assignedTeams?: string[];
+  /** Manual sort position for the grid view. Lower sorts first. */
+  order?: number;
   reportTo: string[];
   createdBy: string;
   createdAt: string;

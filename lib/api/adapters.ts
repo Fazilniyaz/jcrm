@@ -368,6 +368,7 @@ export function toUiTask(task: ApiTask, nameOf: (id: string) => string): UiTask 
     projectIds: task.projectIds,
     assignedTo: task.assigneeIds,
     assignedTeams: task.teamIds ?? [],
+    order: task.order ?? 0,
     reportTo: task.reportToIds,
     createdBy: nameOf(task.createdById),
     createdAt: toDay(task.createdAt),
@@ -428,6 +429,8 @@ export function toApiTaskBody(patch: Partial<UiTask>): Record<string, unknown> {
   if (patch.projectIds !== undefined) body.projectIds = patch.projectIds;
   if (patch.assignedTo !== undefined) body.assigneeIds = patch.assignedTo;
   if (patch.reportTo !== undefined) body.reportToIds = patch.reportTo;
+  if (patch.assignedTeams !== undefined) body.teamIds = patch.assignedTeams;
+  if (patch.order !== undefined) body.order = patch.order;
   if (patch.checklist !== undefined) {
     body.checklist = patch.checklist.map((c) => {
       // Server-managed fields (updatedBy/updatedAt) are never sent — the API's

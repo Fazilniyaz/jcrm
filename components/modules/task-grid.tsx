@@ -5,30 +5,34 @@
  *
  * The other three views are for READING the board. This one is for WRITING it:
  * every cell is edited where it sits, every group ends in a permanent add row,
- * and a task opens downward into its subtasks rather than into a modal.
+ * a task opens downward into its subtasks, and rows can be dragged — within a
+ * group to reorder, across groups to move the work to another project.
  *
- * Three things hold the design together:
+ * Four things hold the design together:
  *
- *   1. COLUMNS ARE DATA. `COLUMNS` below is the single registry — a column is a
- *      key, a width and a cell renderer. Showing, hiding and ordering all fall
- *      out of filtering that list, which is why the column manager is a dozen
- *      lines rather than a feature.
- *   2. Some columns cannot be hidden. A row with no name and no status is not a
- *      task you can act on, so those two are `locked` and the manager refuses
- *      to switch them off.
- *   3. Rows are grouped by PROJECT, and that is load-bearing: a task must
- *      belong to one, so the group already answers the only question the add
- *      row would otherwise have to ask.
+ *   1. COLUMNS ARE DATA. `COLUMNS` is the single registry, so showing, hiding
+ *      and ordering all fall out of filtering one list.
+ *   2. Task and Status cannot be hidden. A row with neither is not something
+ *      anyone can act on.
+ *   3. POPOVERS ARE PORTALLED. The table scrolls horizontally, and a scroll
+ *      container clips on BOTH axes — `overflow-x: auto` computes `overflow-y`
+ *      to `auto` too, so an absolutely-positioned menu inside it gets cut off.
+ *      Every menu here renders into document.body at a fixed position instead.
+ *   4. Rows are grouped by PROJECT, which is what lets the add row create a
+ *      task without asking anything, and what dragging across groups changes.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ChevronDown,
   ChevronRight,
   Columns3,
+  GripVertical,
   Lock,
   Plus,
   Trash2,
+  Users,
   X,
 } from "lucide-react";
 import { Avatar, Card, tone } from "@/components/ui";
@@ -50,6 +54,7 @@ import {
   type Task,
   type TaskStatus,
 } from "@/lib/store/types";
+import type { Team } from "@/lib/api/types";
 
 const newId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -58,40 +63,73 @@ const newId = () =>
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+/** Rows sort by their manual position, with the code as a stable tiebreak. */
+const byOrder = (a: Task, b: Task) =>
+  (a.order ?? 0) - (b.order ?? 0) || a.taskId.localeCompare(b.taskId);
+
 /* =========================================================== primitives == */
 
-/** A cell that opens a small menu under itself. Closes on outside click / Esc. */
+/**
+ * A cell that opens a menu.
+ *
+ * The menu is PORTALLED to document.body and positioned from the trigger's
+ * bounding rect. Rendering it in place looks simpler and is wrong: the table is
+ * inside `overflow-x-auto`, and once one axis is not `visible` the other
+ * computes to `auto`, so an in-place menu is clipped by the scroller — which is
+ * exactly what cut the column list in half.
+ */
 function CellMenu({
   children,
   render,
   label,
-  width = "11rem",
+  width = 176,
 }: {
   children: React.ReactNode;
   render: (close: () => void) => React.ReactNode;
   label: string;
-  width?: string;
+  width?: number;
 }) {
   const [open, setOpen] = useState(false);
-  const wrap = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState({ top: 0, left: 0 });
+  const trigger = useRef<HTMLButtonElement>(null);
+  const pop = useRef<HTMLDivElement>(null);
+
+  // Measured before paint, so the menu never flashes at 0,0.
+  useLayoutEffect(() => {
+    if (!open || !trigger.current) return;
+    const r = trigger.current.getBoundingClientRect();
+    const left = Math.min(
+      Math.max(8, r.left + r.width / 2 - width / 2),
+      window.innerWidth - width - 8,
+    );
+    setBox({ top: r.bottom + 2, left });
+  }, [open, width]);
 
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (wrap.current && !wrap.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (!trigger.current?.contains(t) && !pop.current?.contains(t)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    // A menu pinned to a rect has to close when that rect moves.
+    const onScroll = () => setOpen(false);
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onScroll);
     return () => {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onScroll);
     };
   }, [open]);
 
   return (
-    <div ref={wrap} className="relative h-full">
+    <>
       <button
+        ref={trigger}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
@@ -101,15 +139,20 @@ function CellMenu({
       >
         {children}
       </button>
-      {open && (
-        <div
-          className="pk-menu absolute left-1/2 top-[calc(100%-1px)] z-40 -translate-x-1/2 overflow-hidden rounded-card border border-line bg-card p-1 shadow-pop"
-          style={{ width }}
-        >
-          {render(() => setOpen(false))}
-        </div>
-      )}
-    </div>
+      {open &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={pop}
+            role="menu"
+            className="pk-menu fixed z-[200] max-h-[22rem] overflow-y-auto rounded-card border border-line bg-card p-1 shadow-pop"
+            style={{ top: box.top, left: box.left, width }}
+          >
+            {render(() => setOpen(false))}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
@@ -129,7 +172,6 @@ function EditableText({
 }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(value);
-
   useEffect(() => setText(value), [value]);
 
   function commit() {
@@ -137,9 +179,9 @@ function EditableText({
     if (text.trim() !== value) onCommit(text.trim());
   }
 
-  const base = `h-full w-full bg-transparent px-2 text-[0.75rem] ${
-    mono ? "font-mono" : ""
-  } ${align === "center" ? "text-center" : "text-left"}`;
+  const base = `h-full w-full bg-transparent px-2 text-[0.75rem] ${mono ? "font-mono" : ""} ${
+    align === "center" ? "text-center" : "text-left"
+  }`;
 
   if (editing) {
     return (
@@ -172,7 +214,6 @@ function EditableText({
   );
 }
 
-/** A number, edited in place. `suffix` is shown but never stored. */
 function EditableNumber({
   value,
   onCommit,
@@ -190,7 +231,6 @@ function EditableNumber({
 }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(String(value));
-
   useEffect(() => setText(String(value)), [value]);
 
   function commit() {
@@ -237,7 +277,6 @@ function EditableNumber({
   );
 }
 
-/** A date. The native picker is the right control here — nobody types dates. */
 function EditableDate({
   value,
   onCommit,
@@ -285,9 +324,11 @@ function EditableDate({
 function StatusPill({
   status,
   onPick,
+  compact = false,
 }: {
   status: TaskStatus;
   onPick: (next: TaskStatus) => void;
+  compact?: boolean;
 }) {
   const meta = taskStatusMeta(status);
   return (
@@ -314,7 +355,9 @@ function StatusPill({
       )}
     >
       <span
-        className="flex h-full w-full items-center justify-center text-[0.75rem] font-semibold text-white"
+        className={`flex h-full w-full items-center justify-center font-semibold text-white ${
+          compact ? "text-[0.6875rem]" : "text-[0.75rem]"
+        }`}
         style={{ background: meta.solid }}
       >
         {meta.label}
@@ -364,50 +407,142 @@ function PriorityPill({
   );
 }
 
-/** Avatars + a toggle list. `candidates` is already narrowed by the caller. */
-function PeoplePicker({
+/**
+ * Owners, and the teams they can come from.
+ *
+ * A project staffed by a TEAM used to read as "nobody is on this project yet",
+ * because the picker only ever listed individuals. The teams on the project are
+ * listed first now: expanding one shows who is in it, and picking it puts the
+ * whole team on the task in a single click.
+ */
+function OwnerPicker({
   ids,
   candidates,
+  teams,
   onToggle,
-  empty = "—",
+  onAddMany,
 }: {
   ids: string[];
   candidates: { id: string; name: string }[];
+  teams: Team[];
   onToggle: (id: string) => void;
-  empty?: string;
+  onAddMany: (ids: string[]) => void;
 }) {
   const { state } = useStore();
   const people = employeesByIds(state, ids);
+  const [openTeam, setOpenTeam] = useState<string | null>(null);
 
   return (
     <CellMenu
-      label={people.length ? people.map((p) => p.name).join(", ") : empty}
+      label={people.length ? people.map((p) => p.name).join(", ") : "Unassigned"}
+      width={240}
       render={() => (
-        <ul className="max-h-56 overflow-y-auto">
-          {candidates.length === 0 && (
-            <li className="px-2 py-3 text-center text-[0.6875rem] text-muted">
-              Nobody is on this project yet.
-            </li>
+        <>
+          {teams.length > 0 && (
+            <>
+              <p className="px-2 py-1 text-[0.625rem] font-semibold uppercase tracking-wide text-muted">
+                Teams on this project
+              </p>
+              <ul className="mb-1 border-b border-line pb-1">
+                {teams.map((t) => {
+                  const expanded = openTeam === t.id;
+                  const memberIds = t.memberIds ?? [];
+                  const allOn = memberIds.length > 0 && memberIds.every((m) => ids.includes(m));
+                  return (
+                    <li key={t.id}>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setOpenTeam(expanded ? null : t.id)}
+                          aria-expanded={expanded}
+                          aria-label={`Who is in ${t.name}`}
+                          className="rounded-sm p-1 text-muted hover:bg-hover"
+                        >
+                          {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onAddMany(memberIds)}
+                          disabled={memberIds.length === 0}
+                          title={
+                            memberIds.length === 0
+                              ? "This team has no members"
+                              : `Assign all ${memberIds.length}`
+                          }
+                          className="flex min-w-0 flex-1 items-center gap-1.5 rounded-sm px-1.5 py-1.5 text-left text-[0.75rem] text-text hover:bg-hover disabled:opacity-50"
+                        >
+                          <Users size={12} className="shrink-0 text-muted" />
+                          <span className="min-w-0 flex-1 truncate font-medium">{t.name}</span>
+                          <span className="shrink-0 text-[0.625rem] text-muted">
+                            {allOn ? "all on" : memberIds.length}
+                          </span>
+                        </button>
+                      </div>
+
+                      {/* Who is in it — the question the hover was asking. */}
+                      {expanded && (
+                        <ul className="mb-1 ms-6 border-s border-line ps-1">
+                          {memberIds.length === 0 && (
+                            <li className="px-2 py-1 text-[0.625rem] text-muted">No members.</li>
+                          )}
+                          {employeesByIds(state, memberIds).map((m) => {
+                            const on = ids.includes(m.id);
+                            return (
+                              <li key={m.id}>
+                                <button
+                                  type="button"
+                                  onClick={() => onToggle(m.id)}
+                                  className={`flex w-full items-center gap-2 rounded-sm px-1.5 py-1 text-left text-[0.6875rem] hover:bg-hover ${
+                                    on ? "text-heading" : "text-text"
+                                  }`}
+                                >
+                                  <Avatar initials={initialsOf(m.name)} t="blue" size={18} />
+                                  <span className="min-w-0 flex-1 truncate">{m.name}</span>
+                                  {on && <X size={10} className="shrink-0 text-muted" />}
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
           )}
-          {candidates.map((e) => {
-            const on = ids.includes(e.id);
-            return (
-              <li key={e.id}>
-                <button
-                  type="button"
-                  onClick={() => onToggle(e.id)}
-                  className={`mb-0.5 flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[0.75rem] hover:bg-hover ${
-                    on ? "text-heading" : "text-text"
-                  }`}
-                >
-                  <Avatar initials={initialsOf(e.name)} t="blue" size={20} />
-                  <span className="min-w-0 flex-1 truncate">{e.name}</span>
-                  {on && <X size={12} className="shrink-0 text-muted" />}
-                </button>
+
+          <p className="px-2 py-1 text-[0.625rem] font-semibold uppercase tracking-wide text-muted">
+            People
+          </p>
+          <ul>
+            {candidates.length === 0 && (
+              <li className="px-2 py-3 text-center text-[0.6875rem] leading-relaxed text-muted">
+                {teams.length > 0
+                  ? "This project's members have not loaded yet."
+                  : "Nobody is on this project yet — add people or a team to the project first."}
               </li>
-            );
-          })}
-        </ul>
+            )}
+            {candidates.map((e) => {
+              const on = ids.includes(e.id);
+              return (
+                <li key={e.id}>
+                  <button
+                    type="button"
+                    onClick={() => onToggle(e.id)}
+                    className={`mb-0.5 flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[0.75rem] hover:bg-hover ${
+                      on ? "text-heading" : "text-text"
+                    }`}
+                  >
+                    <Avatar initials={initialsOf(e.name)} t="blue" size={20} />
+                    <span className="min-w-0 flex-1 truncate">{e.name}</span>
+                    {on && <X size={12} className="shrink-0 text-muted" />}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
     >
       <span className="flex h-full w-full items-center justify-center gap-0.5">
@@ -422,6 +557,63 @@ function PeoplePicker({
         )}
         {people.length > 3 && (
           <span className="text-[0.625rem] text-muted">+{people.length - 3}</span>
+        )}
+      </span>
+    </CellMenu>
+  );
+}
+
+/** One person, for a subtask owner. Picking a second replaces the first. */
+function SingleOwnerPicker({
+  id,
+  candidates,
+  onPick,
+}: {
+  id: string | undefined;
+  candidates: { id: string; name: string }[];
+  onPick: (next: string | undefined) => void;
+}) {
+  const { state } = useStore();
+  const person = id ? employeesByIds(state, [id])[0] : undefined;
+
+  return (
+    <CellMenu
+      label={person ? person.name : "Unassigned"}
+      render={(close) => (
+        <ul>
+          {candidates.length === 0 && (
+            <li className="px-2 py-3 text-center text-[0.6875rem] text-muted">
+              Assign the task first — a subtask owner has to be on it.
+            </li>
+          )}
+          {candidates.map((e) => (
+            <li key={e.id}>
+              <button
+                type="button"
+                onClick={() => {
+                  onPick(id === e.id ? undefined : e.id);
+                  close();
+                }}
+                className={`mb-0.5 flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[0.75rem] hover:bg-hover ${
+                  id === e.id ? "text-heading" : "text-text"
+                }`}
+              >
+                <Avatar initials={initialsOf(e.name)} t="blue" size={20} />
+                <span className="min-w-0 flex-1 truncate">{e.name}</span>
+                {id === e.id && <X size={12} className="shrink-0 text-muted" />}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    >
+      <span className="flex h-full w-full items-center justify-center">
+        {person ? (
+          <Avatar initials={initialsOf(person.name)} t="blue" size={22} />
+        ) : (
+          <span className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-line text-muted">
+            <Plus size={11} />
+          </span>
         )}
       </span>
     </CellMenu>
@@ -444,13 +636,7 @@ type ColKey =
   | "pr"
   | "kra";
 
-type ColDef = {
-  key: ColKey;
-  label: string;
-  width: string;
-  /** Cannot be hidden — a row without these is not a task you can act on. */
-  locked?: boolean;
-};
+type ColDef = { key: ColKey; label: string; width: string; locked?: boolean };
 
 const COLUMNS: ColDef[] = [
   { key: "task", label: "Task", width: "minmax(16rem,1fr)", locked: true },
@@ -479,13 +665,6 @@ const DEFAULT_VISIBLE: ColKey[] = [
 
 const STORAGE_KEY = "jadvix.grid-columns";
 
-/**
- * Which columns are on, remembered per browser.
- *
- * Seeded from the default on the server and read from storage after mount —
- * reading during render would be a hydration mismatch, and the grid would flash
- * the default set on every load.
- */
 function useVisibleColumns() {
   const [keys, setKeys] = useState<ColKey[]>(DEFAULT_VISIBLE);
 
@@ -495,8 +674,6 @@ function useVisibleColumns() {
       if (!raw) return;
       const saved = JSON.parse(raw) as ColKey[];
       const valid = saved.filter((k) => COLUMNS.some((c) => c.key === k));
-      // A locked column missing from storage (saved before it was locked, or
-      // hand-edited) is put back rather than honoured.
       for (const c of COLUMNS) if (c.locked && !valid.includes(c.key)) valid.unshift(c.key);
       if (valid.length) setKeys(valid);
     } catch {
@@ -505,13 +682,11 @@ function useVisibleColumns() {
   }, []);
 
   function toggle(key: ColKey) {
-    const col = COLUMNS.find((c) => c.key === key);
-    if (col?.locked) return;
+    if (COLUMNS.find((c) => c.key === key)?.locked) return;
     setKeys((current) => {
       const next = current.includes(key)
         ? current.filter((k) => k !== key)
-        : // Keep registry order, so toggling never shuffles the table.
-          COLUMNS.filter((c) => current.includes(c.key) || c.key === key).map((c) => c.key);
+        : COLUMNS.filter((c) => current.includes(c.key) || c.key === key).map((c) => c.key);
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       } catch {
@@ -521,54 +696,43 @@ function useVisibleColumns() {
     });
   }
 
-  const visible = COLUMNS.filter((c) => keys.includes(c.key));
-  return { visible, keys, toggle };
+  return { visible: COLUMNS.filter((c) => keys.includes(c.key)), keys, toggle };
 }
 
-/** The "+" at the end of the header, as Monday does it. */
-function ColumnManager({
-  keys,
-  onToggle,
-}: {
-  keys: ColKey[];
-  onToggle: (k: ColKey) => void;
-}) {
+function ColumnManager({ keys, onToggle }: { keys: ColKey[]; onToggle: (k: ColKey) => void }) {
   return (
     <CellMenu
       label="Add or remove columns"
-      width="14rem"
+      width={224}
       render={() => (
         <>
           <p className="px-2 py-1.5 text-[0.625rem] font-semibold uppercase tracking-wide text-muted">
             Columns
           </p>
-          <ul className="max-h-72 overflow-y-auto">
-            {COLUMNS.map((c) => {
-              const on = keys.includes(c.key);
-              return (
-                <li key={c.key}>
-                  <button
-                    type="button"
+          <ul>
+            {COLUMNS.map((c) => (
+              <li key={c.key}>
+                <button
+                  type="button"
+                  disabled={c.locked}
+                  onClick={() => onToggle(c.key)}
+                  title={c.locked ? "Always shown — a task needs this" : undefined}
+                  className={`mb-0.5 flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[0.75rem] ${
+                    c.locked ? "cursor-default text-muted" : "text-text hover:bg-hover"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={keys.includes(c.key)}
+                    readOnly
                     disabled={c.locked}
-                    onClick={() => onToggle(c.key)}
-                    title={c.locked ? "Always shown — a task needs this" : undefined}
-                    className={`mb-0.5 flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-[0.75rem] ${
-                      c.locked ? "cursor-default text-muted" : "text-text hover:bg-hover"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={on}
-                      readOnly
-                      disabled={c.locked}
-                      className="h-3.5 w-3.5 accent-[rgb(var(--primary-rgb))]"
-                    />
-                    <span className="flex-1">{c.label}</span>
-                    {c.locked && <Lock size={10} />}
-                  </button>
-                </li>
-              );
-            })}
+                    className="h-3.5 w-3.5 accent-[rgb(var(--primary-rgb))]"
+                  />
+                  <span className="flex-1">{c.label}</span>
+                  {c.locked && <Lock size={10} />}
+                </button>
+              </li>
+            ))}
           </ul>
         </>
       )}
@@ -586,19 +750,14 @@ function ColumnManager({
  * The subtask table, nested under its task — Monday's "subitems".
  *
  * A subtask IS a checklist line: the same row drives the checklist module and
- * the QC deduction. `score` and `points` are the two that matter — they are
- * the only inputs to KRA — so both are editable here, and the score is shown
- * as a percentage because 0.4 is not how anyone thinks about "40% done".
+ * the QC deduction. It carries the same shape as a task, so it gets the same
+ * columns: owner, status, PRIORITY, score, points, START and due.
+ *
+ * Rendered as a plain block, NOT as a child of the row's grid. It has its own
+ * column widths, and forcing it into the parent's template is what made the
+ * task column collapse and the row slide out from under its header.
  */
-function SubtaskRows({
-  task,
-  colour,
-  span,
-}: {
-  task: Task;
-  colour: string;
-  span: number;
-}) {
+function SubtaskRows({ task, colour }: { task: Task; colour: string }) {
   const { state, updateTask } = useStore();
   const [adding, setAdding] = useState(false);
   const [label, setLabel] = useState("");
@@ -606,16 +765,11 @@ function SubtaskRows({
 
   const owners = employeesByIds(state, task.assignedTo);
 
-  function write(next: Subtask[], note: string) {
+  const write = (next: Subtask[], note: string) =>
     updateTask(task.id, { checklist: next }, note);
-  }
 
-  function patch(id: string, change: Partial<Subtask>, note: string) {
-    write(
-      task.checklist.map((c) => (c.id === id ? { ...c, ...change } : c)),
-      note,
-    );
-  }
+  const patch = (id: string, change: Partial<Subtask>, note: string) =>
+    write(task.checklist.map((c) => (c.id === id ? { ...c, ...change } : c)), note);
 
   function add() {
     const next = label.trim();
@@ -632,6 +786,8 @@ function SubtaskRows({
           score: 0,
           points: 1,
           status: "Not Started" as TaskStatus,
+          priority: 3,
+          startDate: today(),
           createdAt: today(),
         },
       ],
@@ -641,21 +797,21 @@ function SubtaskRows({
     inputRef.current?.focus();
   }
 
-  const SUB_COLS = "minmax(14rem,1fr) 7rem 9.5rem 6.5rem 5.5rem 7.5rem 2.5rem";
+  const SUB = "minmax(13rem,1fr) 6rem 9rem 5.5rem 5rem 5rem 7rem 7rem 2.5rem";
+  const HEADS = ["Subtask", "Owner", "Status", "Priority", "Score", "Points", "Start", "Due", ""];
 
   return (
     <div
-      className="border-b border-line bg-subtle/60"
-      style={{ gridColumn: `1 / span ${span}`, boxShadow: `inset 3px 0 0 0 ${colour}` }}
+      className="border-b border-line bg-subtle"
+      style={{ boxShadow: `inset 3px 0 0 0 ${colour}` }}
     >
-      <div className="overflow-x-auto py-1.5 ps-8 pe-2">
-        <div className="min-w-[52rem] rounded-card border border-line bg-card">
-          {/* heads */}
+      <div className="py-2 ps-8 pe-3">
+        <div className="min-w-[58rem] overflow-hidden rounded-card border border-line bg-card">
           <div
             className="grid items-center border-b border-line bg-subtle text-[0.625rem] font-semibold uppercase tracking-wide text-muted"
-            style={{ gridTemplateColumns: SUB_COLS }}
+            style={{ gridTemplateColumns: SUB }}
           >
-            {["Subtask", "Owner", "Status", "Score", "Points", "Due", ""].map((h, i) => (
+            {HEADS.map((h, i) => (
               <span key={h || i} className={`px-2 py-1.5 ${i === 0 ? "" : "text-center"}`}>
                 {h}
               </span>
@@ -666,7 +822,7 @@ function SubtaskRows({
             <div
               key={line.id}
               className="grid items-stretch border-b border-line last:border-b-0 hover:bg-hover"
-              style={{ gridTemplateColumns: SUB_COLS }}
+              style={{ gridTemplateColumns: SUB }}
             >
               <span className="flex min-h-[2.1rem] items-center">
                 <EditableText
@@ -676,34 +832,35 @@ function SubtaskRows({
               </span>
 
               <span className="border-s border-line">
-                <PeoplePicker
-                  ids={line.ownerId ? [line.ownerId] : []}
+                <SingleOwnerPicker
+                  id={line.ownerId}
                   candidates={owners}
-                  empty="Unassigned"
-                  // One owner per subtask: picking a second replaces the first.
-                  onToggle={(id) =>
-                    patch(
-                      line.id,
-                      { ownerId: line.ownerId === id ? undefined : id },
-                      "changed a subtask owner",
-                    )
+                  onPick={(next) =>
+                    patch(line.id, { ownerId: next }, "changed a subtask owner")
                   }
                 />
               </span>
 
               <span className="border-s border-line">
                 <StatusPill
+                  compact
                   status={line.status ?? "Not Started"}
                   onPick={(s) =>
                     patch(
                       line.id,
                       // Status and score are two readings of the same thing, so
-                      // marking a subtask Done completes it rather than leaving
-                      // a "Done" line sitting at 0%.
+                      // Done completes it rather than leaving a Done line at 0%.
                       s === "Done" ? { status: s, score: 1 } : { status: s },
                       `subtask moved to ${s}`,
                     )
                   }
+                />
+              </span>
+
+              <span className="border-s border-line">
+                <PriorityPill
+                  priority={line.priority ?? 3}
+                  onPick={(p) => patch(line.id, { priority: p }, "changed subtask priority")}
                 />
               </span>
 
@@ -735,6 +892,15 @@ function SubtaskRows({
 
               <span className="flex items-center border-s border-line">
                 <EditableDate
+                  value={line.startDate}
+                  onCommit={(v) =>
+                    patch(line.id, { startDate: v || undefined }, "dated a subtask")
+                  }
+                />
+              </span>
+
+              <span className="flex items-center border-s border-line">
+                <EditableDate
                   value={line.endDate}
                   onCommit={(v) => patch(line.id, { endDate: v || undefined }, "dated a subtask")}
                 />
@@ -750,7 +916,7 @@ function SubtaskRows({
                     )
                   }
                   aria-label={`Delete ${line.label}`}
-                  className="rounded-sm p-1 text-muted hover:bg-hover"
+                  className="rounded-sm p-1 hover:bg-hover"
                   style={{ color: "rgb(var(--danger-rgb))" }}
                 >
                   <Trash2 size={13} />
@@ -759,8 +925,7 @@ function SubtaskRows({
             </div>
           ))}
 
-          {/* add row */}
-          <div className="grid" style={{ gridTemplateColumns: SUB_COLS }}>
+          <div className="grid" style={{ gridTemplateColumns: SUB }}>
             <span className="flex min-h-[2.1rem] items-center">
               {adding ? (
                 <input
@@ -790,12 +955,9 @@ function SubtaskRows({
                 </button>
               )}
             </span>
-            <span className="border-s border-line" />
-            <span className="border-s border-line" />
-            <span className="border-s border-line" />
-            <span className="border-s border-line" />
-            <span className="border-s border-line" />
-            <span className="border-s border-line" />
+            {HEADS.slice(1).map((h, i) => (
+              <span key={h || i} className="border-s border-line" />
+            ))}
           </div>
         </div>
       </div>
@@ -812,6 +974,12 @@ function TaskRow({
   expanded,
   onExpand,
   onOpen,
+  dragging,
+  dropHint,
+  onDragStart,
+  onDragEnd,
+  onDragOverRow,
+  onDropRow,
 }: {
   task: Task;
   colour: string;
@@ -819,21 +987,36 @@ function TaskRow({
   expanded: boolean;
   onExpand: () => void;
   onOpen: (t: Task) => void;
+  dragging: boolean;
+  dropHint: boolean;
+  onDragStart: (e: React.DragEvent) => void;
+  onDragEnd: () => void;
+  onDragOverRow: (e: React.DragEvent) => void;
+  onDropRow: (e: React.DragEvent) => void;
 }) {
   const { state, updateTask } = useStore();
   const session = useSession();
-  const { data: teams = [] } = useListTeamsQuery(undefined, {
+  const { data: allTeams = [] } = useListTeamsQuery(undefined, {
     skip: session.status !== "user",
   });
+
+  const projects = useMemo(
+    () => projectsByIds(state, task.projectIds),
+    [state, task.projectIds],
+  );
 
   // Only people already on one of the task's projects — the API enforces the
   // same rule, so offering anyone else would be a dead end.
   const assignable = useMemo(() => {
-    const onProjects = new Set(
-      projectsByIds(state, task.projectIds).flatMap((p) => p.assignedEmployees),
-    );
+    const onProjects = new Set(projects.flatMap((p) => p.assignedEmployees));
     return state.employees.filter((e) => onProjects.has(e.id));
-  }, [state, task.projectIds]);
+  }, [state.employees, projects]);
+
+  /** The teams the PROJECT was staffed with — the answer to "who is on this". */
+  const projectTeams = useMemo(() => {
+    const ids = new Set(projects.flatMap((p) => p.assignedTeams ?? []));
+    return allTeams.filter((t) => ids.has(t.id));
+  }, [projects, allTeams]);
 
   const oversight = useMemo(
     () =>
@@ -849,7 +1032,17 @@ function TaskRow({
     switch (col.key) {
       case "task":
         return (
-          <div className="flex h-full items-center gap-1 px-1">
+          <div className="flex h-full items-center gap-0.5 ps-1 pe-1">
+            <span
+              draggable
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
+              aria-label="Drag to reorder or move to another project"
+              title="Drag to reorder, or onto another project to move it"
+              className="shrink-0 cursor-grab rounded-sm p-0.5 text-muted opacity-0 hover:bg-hover active:cursor-grabbing group-hover/row:opacity-100"
+            >
+              <GripVertical size={13} />
+            </span>
             <button
               type="button"
               onClick={onExpand}
@@ -882,9 +1075,10 @@ function TaskRow({
 
       case "owner":
         return (
-          <PeoplePicker
+          <OwnerPicker
             ids={task.assignedTo}
             candidates={assignable}
+            teams={projectTeams}
             onToggle={(id) =>
               updateTask(
                 task.id,
@@ -894,6 +1088,13 @@ function TaskRow({
                     : [...task.assignedTo, id],
                 },
                 "reassigned",
+              )
+            }
+            onAddMany={(many) =>
+              updateTask(
+                task.id,
+                { assignedTo: [...new Set([...task.assignedTo, ...many])] },
+                "assigned a team",
               )
             }
           />
@@ -928,8 +1129,6 @@ function TaskRow({
         );
 
       case "progress":
-        // Derived from the subtasks, so it is the one read-only column — the
-        // way to change it is to score a subtask, which is a click away above.
         return (
           <span className="flex h-full flex-col items-center justify-center gap-1 px-2">
             <span className="text-[0.6875rem] text-muted">
@@ -949,7 +1148,9 @@ function TaskRow({
           <span className="flex h-full items-center">
             <EditableDate
               value={task.endDate}
-              onCommit={(v) => updateTask(task.id, { endDate: v || undefined }, "changed the due date")}
+              onCommit={(v) =>
+                updateTask(task.id, { endDate: v || undefined }, "changed the due date")
+              }
             />
           </span>
         );
@@ -966,9 +1167,10 @@ function TaskRow({
 
       case "reportTo":
         return (
-          <PeoplePicker
+          <OwnerPicker
             ids={task.reportTo}
             candidates={oversight}
+            teams={[]}
             onToggle={(id) =>
               updateTask(
                 task.id,
@@ -980,6 +1182,13 @@ function TaskRow({
                 "changed the reporting line",
               )
             }
+            onAddMany={(many) =>
+              updateTask(
+                task.id,
+                { reportTo: [...new Set([...task.reportTo, ...many])] },
+                "changed the reporting line",
+              )
+            }
           />
         );
 
@@ -988,14 +1197,15 @@ function TaskRow({
         return (
           <CellMenu
             label="Teams"
+            width={200}
             render={() => (
-              <ul className="max-h-56 overflow-y-auto">
-                {teams.length === 0 && (
+              <ul>
+                {allTeams.length === 0 && (
                   <li className="px-2 py-3 text-center text-[0.6875rem] text-muted">
                     No teams yet.
                   </li>
                 )}
-                {teams.map((t) => {
+                {allTeams.map((t) => {
                   const on = picked.includes(t.id);
                   return (
                     <li key={t.id}>
@@ -1016,7 +1226,8 @@ function TaskRow({
                           on ? "text-heading" : "text-text"
                         }`}
                       >
-                        <span className="flex-1 truncate">{t.name}</span>
+                        <Users size={12} className="shrink-0 text-muted" />
+                        <span className="min-w-0 flex-1 truncate">{t.name}</span>
                         {on && <X size={12} className="text-muted" />}
                       </button>
                     </li>
@@ -1025,12 +1236,12 @@ function TaskRow({
               </ul>
             )}
           >
-            <span className="flex h-full w-full items-center justify-center gap-1 px-1 text-[0.6875rem] text-text">
+            <span className="flex h-full w-full items-center justify-center px-1 text-[0.6875rem] text-text">
               {picked.length === 0 ? (
                 <span className="text-muted">—</span>
               ) : (
                 <span className="truncate">
-                  {teams.find((t) => t.id === picked[0])?.name ?? "1 team"}
+                  {allTeams.find((t) => t.id === picked[0])?.name ?? "1 team"}
                   {picked.length > 1 ? ` +${picked.length - 1}` : ""}
                 </span>
               )}
@@ -1044,19 +1255,14 @@ function TaskRow({
           <span className="flex h-full items-center">
             <EditableText
               value={task.prUrl ?? ""}
-              placeholder="—"
               onCommit={(v) => updateTask(task.id, { prUrl: v || undefined }, "changed the PR link")}
             />
           </span>
         );
 
       case "kra":
-        /*
-         * Derived, like Progress: the points at stake are the sum of the
-         * subtasks' own points, which is what QC actually deducts against.
-         * Rendering it as an input you can type into would be a lie — the way
-         * to change it is to change a subtask's points, one row below.
-         */
+        /* Derived, like Progress: the points at stake are the sum of the
+           subtasks' own points, which is what QC deducts against. */
         return (
           <span
             className="flex h-full items-center justify-center text-[0.75rem] text-text"
@@ -1071,13 +1277,21 @@ function TaskRow({
     }
   }
 
+  const template = `${columns.map((c) => c.width).join(" ")} 2.5rem`;
+
   return (
     <>
       <div
-        className="group/row grid items-stretch border-b border-line transition-colors hover:bg-hover"
+        onDragOver={onDragOverRow}
+        onDrop={onDropRow}
+        className={`group/row grid items-stretch border-b border-line transition-colors hover:bg-hover ${
+          dragging ? "opacity-40" : ""
+        }`}
         style={{
-          gridTemplateColumns: `${columns.map((c) => c.width).join(" ")} 2.5rem`,
-          boxShadow: `inset 3px 0 0 0 ${colour}`,
+          gridTemplateColumns: template,
+          boxShadow: dropHint
+            ? `inset 3px 0 0 0 ${colour}, inset 0 2px 0 0 rgb(var(--primary-rgb))`
+            : `inset 3px 0 0 0 ${colour}`,
         }}
       >
         {columns.map((col, i) => (
@@ -1088,14 +1302,8 @@ function TaskRow({
         <span className="border-s border-line" />
       </div>
 
-      {expanded && (
-        <div
-          className="grid"
-          style={{ gridTemplateColumns: `${columns.map((c) => c.width).join(" ")} 2.5rem` }}
-        >
-          <SubtaskRows task={task} colour={colour} span={columns.length + 1} />
-        </div>
-      )}
+      {/* Full width, outside the row's grid — see the note on SubtaskRows. */}
+      {expanded && <SubtaskRows task={task} colour={colour} />}
     </>
   );
 }
@@ -1133,6 +1341,7 @@ function GroupBlock({
   colKeys,
   onToggleColumn,
   onOpen,
+  drag,
 }: {
   group: Group;
   colour: string;
@@ -1140,6 +1349,7 @@ function GroupBlock({
   colKeys: ColKey[];
   onToggleColumn: (k: ColKey) => void;
   onOpen: (t: Task) => void;
+  drag: DragApi;
 }) {
   const { createTask, suggestTaskCode } = useStore();
   const [open, setOpen] = useState(true);
@@ -1150,7 +1360,6 @@ function GroupBlock({
 
   const template = `${columns.map((c) => c.width).join(" ")} 2.5rem`;
 
-  /** Create and STAY in the row — writing several at once is the point. */
   function add() {
     const next = title.trim();
     if (!next) {
@@ -1185,31 +1394,49 @@ function GroupBlock({
     count: group.tasks.filter((t) => t.priority === p.value).length,
   }));
 
+  const isTarget = drag.overGroup === group.id && drag.overIndex === null;
+
   return (
     <div className="mb-6">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="mb-1.5 flex items-center gap-1.5"
-      >
-        {open ? (
-          <ChevronDown size={16} style={{ color: colour }} />
-        ) : (
-          <ChevronRight size={16} style={{ color: colour }} />
-        )}
-        <span className="text-[1rem] font-bold" style={{ color: colour }}>
-          {group.name}
-        </span>
-        <span className="text-[0.75rem] text-muted">
-          {group.code} · {group.tasks.length} {group.tasks.length === 1 ? "task" : "tasks"}
-        </span>
-      </button>
+      {/* Header, and the column manager — deliberately OUTSIDE the scroller. */}
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className="flex items-center gap-1.5"
+        >
+          {open ? (
+            <ChevronDown size={16} style={{ color: colour }} />
+          ) : (
+            <ChevronRight size={16} style={{ color: colour }} />
+          )}
+          <span className="text-[1rem] font-bold" style={{ color: colour }}>
+            {group.name}
+          </span>
+          <span className="text-[0.75rem] text-muted">
+            {group.code} · {group.tasks.length} {group.tasks.length === 1 ? "task" : "tasks"}
+          </span>
+        </button>
+      </div>
 
       {open && (
-        <div className="overflow-x-auto rounded-card border border-line bg-card shadow-card">
-          <div style={{ minWidth: "56rem" }}>
-            {/* heads, with the column manager pinned at the end */}
+        <div
+          onDragOver={(e) => {
+            if (!drag.taskId) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            drag.setOver(group.id, null);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            drag.drop(group.id, null);
+          }}
+          className={`overflow-x-auto rounded-card border bg-card shadow-card ${
+            isTarget ? "border-primary" : "border-line"
+          }`}
+        >
+          <div style={{ minWidth: "58rem" }}>
             <div
               className="grid items-center border-b border-line bg-subtle text-[0.6875rem] font-semibold uppercase tracking-wide text-muted"
               style={{ gridTemplateColumns: template }}
@@ -1224,7 +1451,7 @@ function GroupBlock({
               </span>
             </div>
 
-            {group.tasks.map((task) => (
+            {group.tasks.map((task, i) => (
               <TaskRow
                 key={task.id}
                 task={task}
@@ -1233,10 +1460,31 @@ function GroupBlock({
                 expanded={expanded === task.id}
                 onExpand={() => setExpanded(expanded === task.id ? null : task.id)}
                 onOpen={onOpen}
+                dragging={drag.taskId === task.id}
+                dropHint={drag.overGroup === group.id && drag.overIndex === i}
+                onDragStart={(e) => {
+                  /* Firefox refuses to start a drag unless some data is set,
+                     and without effectAllowed the cursor shows "no drop". */
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData("text/plain", task.id);
+                  drag.start(task.id, group.id);
+                }}
+                onDragEnd={drag.end}
+                onDragOverRow={(e) => {
+                  if (!drag.taskId) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  e.dataTransfer.dropEffect = "move";
+                  drag.setOver(group.id, i);
+                }}
+                onDropRow={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  drag.drop(group.id, i);
+                }}
               />
             ))}
 
-            {/* the add row — always there, never behind a button */}
             <div
               className="grid border-b border-line"
               style={{ gridTemplateColumns: template, boxShadow: `inset 3px 0 0 0 ${colour}` }}
@@ -1276,7 +1524,7 @@ function GroupBlock({
               <span className="border-s border-line" />
             </div>
 
-            <div className="grid items-center bg-subtle/50 py-2" style={{ gridTemplateColumns: template }}>
+            <div className="grid items-center py-2" style={{ gridTemplateColumns: template }}>
               {columns.map((c) => (
                 <span key={c.key} className="px-2">
                   {c.key === "status" ? (
@@ -1299,16 +1547,38 @@ function GroupBlock({
 
 const GROUP_TONES = ["primary", "blue", "purple", "teal", "orange", "pink", "sky"] as const;
 
+type DragApi = {
+  taskId: string | null;
+  overGroup: string | null;
+  overIndex: number | null;
+  start: (taskId: string, groupId: string) => void;
+  end: () => void;
+  setOver: (groupId: string, index: number | null) => void;
+  drop: (groupId: string, index: number | null) => void;
+};
+
 export function GridView({ tasks, onOpen }: { tasks: Task[]; onOpen: (t: Task) => void }) {
-  const { state } = useStore();
+  const { state, updateTask } = useStore();
   const { visible, keys, toggle } = useVisibleColumns();
 
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overGroup, setOverGroup] = useState<string | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
+
+  /*
+   * Rows are ordered by their own `order`, NOT by the module's sort control.
+   *
+   * Dragging a row has to have a visible effect, and it cannot if a sort is
+   * overriding the result. The other three views honour the sort; this one is
+   * the manual board.
+   */
   const groups = useMemo<Group[]>(() => {
     const byProject = new Map<string, Task[]>();
     for (const task of tasks) {
       const key = task.projectIds[0] ?? "";
       byProject.set(key, [...(byProject.get(key) ?? []), task]);
     }
+    for (const [, list] of byProject) list.sort(byOrder);
 
     const out: Group[] = state.projects
       .filter((p) => byProject.has(p.id))
@@ -1319,8 +1589,6 @@ export function GridView({ tasks, onOpen }: { tasks: Task[]; onOpen: (t: Task) =
     return out;
   }, [tasks, state.projects]);
 
-  /* Projects with no tasks still get a group — otherwise an empty project has
-     nowhere to add its first task. */
   const empties = useMemo<Group[]>(
     () =>
       state.projects
@@ -1330,6 +1598,72 @@ export function GridView({ tasks, onOpen }: { tasks: Task[]; onOpen: (t: Task) =
   );
 
   const all = [...groups, ...empties];
+
+  /**
+   * Where the dragged row lands.
+   *
+   * The new position is the MIDPOINT of its neighbours, so one row is written
+   * and the rest keep the numbers they had. Dropping on a group rather than a
+   * row appends to the end of it; dropping into a different group also moves
+   * the task to that project, which is the only thing here that changes
+   * anything other than ordering.
+   */
+  function drop(groupId: string, index: number | null) {
+    const taskId = dragId;
+    setDragId(null);
+    setOverGroup(null);
+    setOverIndex(null);
+    if (!taskId) return;
+
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+
+    const target = all.find((g) => g.id === groupId);
+    if (!target) return;
+
+    const siblings = target.tasks.filter((t) => t.id !== taskId);
+    const at = index === null ? siblings.length : Math.min(index, siblings.length);
+
+    const before = at > 0 ? (siblings[at - 1]?.order ?? 0) : undefined;
+    const after = at < siblings.length ? (siblings[at]?.order ?? 0) : undefined;
+
+    let order: number;
+    if (before === undefined && after === undefined) order = Date.now();
+    else if (before === undefined) order = (after as number) - 1000;
+    else if (after === undefined) order = before + 1000;
+    else order = (before + after) / 2;
+
+    const movedProject = groupId !== (task.projectIds[0] ?? "");
+    if (movedProject && !groupId) return; // "No project" is not a real target.
+
+    updateTask(
+      task.id,
+      {
+        order,
+        ...(movedProject
+          ? { projectIds: [groupId, ...task.projectIds.filter((p) => p !== groupId)] }
+          : {}),
+      },
+      movedProject ? `moved to ${target.name}` : "reordered",
+    );
+  }
+
+  const drag: DragApi = {
+    taskId: dragId,
+    overGroup,
+    overIndex,
+    start: (taskId) => setDragId(taskId),
+    end: () => {
+      setDragId(null);
+      setOverGroup(null);
+      setOverIndex(null);
+    },
+    setOver: (groupId, index) => {
+      setOverGroup(groupId);
+      setOverIndex(index);
+    },
+    drop,
+  };
 
   if (all.length === 0) {
     return (
@@ -1352,6 +1686,7 @@ export function GridView({ tasks, onOpen }: { tasks: Task[]; onOpen: (t: Task) =
           colKeys={keys}
           onToggleColumn={toggle}
           onOpen={onOpen}
+          drag={drag}
         />
       ))}
     </div>

@@ -370,6 +370,8 @@ export type Task = {
   assigneeIds: string[];
   /** Teams on this task — a reference; the people are in `assigneeIds`. */
   teamIds: string[];
+  /** Manual sort position for the grid view. */
+  order: number;
   reportToIds: string[];
   createdById: string;
   state: TaskStateApi;
