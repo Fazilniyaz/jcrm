@@ -6,6 +6,13 @@ Two services, two different homes:
 |---|---|---|---|
 | `jcrm` | Next.js 16 app | **Vercel** | What Vercel is built for. |
 | `jcrmbe` | Express 5 + Prisma + MongoDB | **Render / Railway / Fly.io** | A long-lived Node process. See the warning below. |
+
+> **Deploying the API to Vercel instead?** That is supported — `api/index.ts`
+> and `vercel.json` are in the `jcrmbe` repo — but it has its own set of
+> trade-offs and its own runbook: **`jcrmbe/docs/DEPLOY-VERCEL.md`**. That
+> document also covers creating the master-portal credentials, creating the
+> first super admin, and why there is no such thing as restarting a Vercel
+> deployment.
 | Database | MongoDB Atlas | Atlas (M10+ or any **replica set**) | Prisma transactions need a replica set. |
 
 > **Do not put the Express API on Vercel.** It is technically possible as a
