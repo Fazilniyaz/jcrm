@@ -18,7 +18,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Orbit, Search, Users, Gauge, FolderKanban, X } from "lucide-react";
 import {
-  Avatar,
   Badge,
   Card,
   CardBody,
@@ -35,6 +34,7 @@ import { useSession } from "@/lib/api/session";
 import { toUiRole } from "@/lib/api/adapters";
 import type { PlaygroundPerson } from "@/lib/api/types";
 import { PersonAvatar } from "@/components/ui/PersonAvatar";
+import { StatusTag } from "@/components/ui/StatusTag";
 import type { Tone } from "@/lib/ui/tone";
 import type { ScenePerson } from "./Scene";
 
@@ -394,13 +394,16 @@ export function Playground() {
                         {p.branch ? ` · ${p.branch}` : ""} · {p.empId}
                       </span>
                       {/* Their own words, kept on its own line so it never
-                          displaces the facts above it. */}
-                      {p.status?.text && (
-                        <span className="mt-0.5 block truncate text-[0.6875rem] text-heading">
-                          {p.status.emoji ? `${p.status.emoji} ` : ""}
-                          {p.status.text}
-                        </span>
-                      )}
+                          displaces the facts above it — and as a tag rather
+                          than grey text, because it is the thing this screen
+                          exists to answer. */}
+                      <span className="mt-1 block">
+                        <StatusTag
+                          status={p.status}
+                          workStatus={p.currentStatus}
+                          presence={p.presence}
+                        />
+                      </span>
                     </span>
                     <span className="hidden w-28 shrink-0 sm:block">
                       <Progress value={p.kra} t={p.kra >= 70 ? "sky" : p.kra >= 40 ? "orange" : "red"} />
@@ -478,12 +481,14 @@ function PersonDetail({ person }: { person: PlaygroundPerson }) {
             <p className="truncate text-[0.75rem] text-muted">
               {toUiRole(person.roles)} · {person.empId}
             </p>
-            {person.status?.text && (
-              <p className="mt-0.5 truncate text-[0.75rem] text-heading">
-                {person.status.emoji ? `${person.status.emoji} ` : ""}
-                {person.status.text}
-              </p>
-            )}
+            <p className="mt-1.5">
+              <StatusTag
+                status={person.status}
+                workStatus={person.currentStatus}
+                presence={person.presence}
+                size="md"
+              />
+            </p>
           </div>
         </div>
 

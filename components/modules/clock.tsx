@@ -36,6 +36,8 @@ import {
   tone,
 } from "@/components/ui";
 import { useStore } from "@/lib/store/StoreProvider";
+import { useSession } from "@/lib/api/session";
+import { LiveClock } from "./clock-live";
 import { useNow } from "@/lib/use-now";
 import {
   clockFor,
@@ -72,7 +74,19 @@ import {
 
 export function Clock() {
   const { hydrated, currentEmployee, currentPortal, currentUser } = useStore();
+  const session = useSession();
   const isAdmin = currentPortal === "master-portal" || currentPortal === "super-admin";
+
+  /*
+   * A signed-in workspace has real attendance, so it gets the real thing.
+   *
+   * Everything below this line is the DEMO store — invented shifts for the
+   * portals nobody signs into. It stays untouched rather than being taught to
+   * read the API, because the two carry different row shapes and merging them
+   * would mean every change to the live path had to be re-tested against data
+   * that only exists for a demo.
+   */
+  if (session.status === "user") return <LiveClock />;
 
   if (!hydrated) return <ModuleSkeleton rows={6} />;
 

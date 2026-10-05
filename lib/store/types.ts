@@ -77,6 +77,20 @@ export type Employee = {
   invitePending?: boolean;
   /** That outstanding invite has passed its expiry and needs re-sending. */
   inviteExpired?: boolean;
+
+  /*
+   * Live identity, from the API only.
+   *
+   * All three are optional because the demo store has nobody signed in: there
+   * is no heartbeat to derive presence from and no profile to have written a
+   * status on. A seeded workspace therefore shows its work status, which is
+   * the honest answer, rather than fourteen people permanently offline.
+   */
+  avatar?: string | null;
+  /** The Slack-style line the person wrote about themselves. */
+  liveStatus?: { text: string | null; emoji: string | null; until: string | null } | null;
+  /** Derived from the heartbeat — never a stored boolean. */
+  presence?: "online" | "away" | "offline";
 };
 
 /* -------------------------------------------------------------- projects -- */
@@ -493,6 +507,13 @@ export type Task = {
   assignedTeams?: string[];
   /** Manual sort position for the grid view. Lower sorts first. */
   order?: number;
+  /**
+   * The sprint lane this task sits in, or absent for the project's backlog.
+   *
+   * Optional rather than nullable: the demo store has no sprints at all, and
+   * every one of its tasks is legitimately in the backlog.
+   */
+  sprintId?: string | null;
   reportTo: string[];
   createdBy: string;
   createdAt: string;

@@ -41,6 +41,8 @@ import {
   SectionLabel,
   tone,
 } from "@/components/ui";
+import { PersonAvatar } from "@/components/ui/PersonAvatar";
+import { StatusTag } from "@/components/ui/StatusTag";
 import { ConfirmDialog } from "@/components/ui/overlay";
 import { SelectInput } from "@/components/ui/form";
 import { useStore } from "@/lib/store/StoreProvider";
@@ -59,7 +61,6 @@ import {
   ACCOUNT_STATE_TONE,
   EMPLOYEE_ROLES,
   EMPLOYEE_STATUSES,
-  EMPLOYEE_STATUS_TONE,
   PROJECT_STATUS_TONE,
   ROLE_TONE,
   TASK_STATUS_TONE,
@@ -331,7 +332,14 @@ export function EmployeeManagement() {
                           >
                             <ChevronRight size={16} />
                           </button>
-                          <Avatar initials={initialsOf(e.name)} t={e.tone} size={36} />
+                          <PersonAvatar
+                            name={e.name}
+                            initials={initialsOf(e.name)}
+                            avatar={e.avatar}
+                            t={e.tone}
+                            size={36}
+                            presence={e.presence}
+                          />
                           <span className="min-w-0">
                             <span
                               className={`block whitespace-nowrap font-semibold ${
@@ -373,7 +381,13 @@ export function EmployeeManagement() {
                         <span className="text-muted"> task{open === 1 ? "" : "s"}</span>
                       </Td>
                       <Td>
-                        <Badge t={EMPLOYEE_STATUS_TONE[e.status]}>{e.status}</Badge>
+                        {/* Their own words when they wrote any, the work
+                            status otherwise — see StatusTag. */}
+                        <StatusTag
+                          status={e.liveStatus}
+                          workStatus={e.status}
+                          presence={e.presence}
+                        />
                       </Td>
                       <Td>
                         <AccountBadge employee={e} />

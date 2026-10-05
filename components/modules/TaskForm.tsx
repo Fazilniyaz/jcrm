@@ -13,7 +13,8 @@ import {
   TextInput,
   type Option,
 } from "@/components/ui/form";
-import { RichTextEditor, hasRichText } from "@/components/ui/RichText";
+import { hasRichText } from "@/components/ui/RichText";
+import { RichTextEditor } from "@/components/ui/RichTextEditorLazy";
 import { useStore } from "@/lib/store/StoreProvider";
 import { useListTeamsQuery } from "@/lib/api/api";
 import { useSession } from "@/lib/api/session";

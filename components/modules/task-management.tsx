@@ -10,6 +10,7 @@ import {
   Rows3,
   Table2,
   Grid3x3,
+  Layers,
   Plus as PlusIcon,
   ListChecks,
   GitPullRequest,
@@ -85,6 +86,16 @@ import TaskStatusControl from "./TaskStatusControl";
 import TaskAttachments, { AttachmentButton } from "./TaskAttachments";
 import { RichTextView, hasRichText, richTextToPlain } from "@/components/ui/RichText";
 import { GridView } from "./task-grid";
+import { SprintBoard } from "./sprint-board";
+
+/**
+ * The five ways the same task list can be read.
+ *
+ * Named rather than inlined because the literal was repeated in the state
+ * declaration, the switch handler and the button array, and adding a view
+ * meant finding all three.
+ */
+type View = "board" | "table" | "list" | "grid" | "sprints";
 
 /**
  * May the signed-in person change what a task IS — retitle, re-scope, delete?
@@ -129,7 +140,7 @@ export function TaskManagement() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<TaskStatus | "All">("All");
   const [sort, setSort] = useState<SortKey>("priority");
-  const [view, setView] = useState<"board" | "table" | "list" | "grid">("list");
+  const [view, setView] = useState<View>("list");
   /** Which of the two readings is on screen — see the switch below. */
   const [scope, setScope] = useState<"tasks" | "subtasks">("tasks");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -217,7 +228,7 @@ export function TaskManagement() {
 
   // Switching view drops whatever the panel was showing: the panel is a
   // list-view surface, and a card popup left mid-open behind a board is a ghost.
-  const changeView = (v: "board" | "table" | "list" | "grid") => {
+  const changeView = (v: View) => {
     setView(v);
     setDetail(null);
     setOpenSubtask(null);
@@ -335,6 +346,7 @@ export function TaskManagement() {
                 { key: "list", icon: Rows3, label: "List view" },
                 { key: "table", icon: Table2, label: "Table view" },
                 { key: "grid", icon: Grid3x3, label: "Grid view — add tasks inline" },
+                { key: "sprints", icon: Layers, label: "Sprint board — plan work into sprints" },
               ] as const
             ).map((v) => (
               <button
@@ -364,7 +376,14 @@ export function TaskManagement() {
         when that matters most — it renders its own project groups, each with
         an add row, so there is always somewhere to type the first task.
       */}
-      {view === "grid" ? (
+      {/*
+        The sprint board draws its own project groups and its own backlog, so
+        like the grid it is exempt from the empty state: an unplanned
+        workspace is exactly when somebody needs to open it.
+      */}
+      {view === "sprints" ? (
+        <SprintBoard onOpen={openTaskPanel} />
+      ) : view === "grid" ? (
         <GridView tasks={filtered} onOpen={openTaskPanel} />
       ) : filtered.length === 0 ? (
         <Card>

@@ -138,6 +138,12 @@ export function toUiEmployee(employee: ApiEmployee): UiEmployee {
     accountState: ACCOUNT_STATE_TO_UI[employee.state],
     invitePending: employee.invitePending,
     inviteExpired: employee.inviteExpired,
+    avatar: employee.avatar,
+    // Renamed on the way in: the UI record already has a `status` (the work
+    // status, an enum), and two fields called the same thing meaning
+    // different things is how the wrong one gets rendered.
+    liveStatus: employee.status,
+    presence: employee.presence,
   };
 }
 
@@ -368,6 +374,7 @@ export function toUiTask(task: ApiTask, nameOf: (id: string) => string): UiTask 
     projectIds: task.projectIds,
     assignedTo: task.assigneeIds,
     assignedTeams: task.teamIds ?? [],
+    sprintId: task.sprintId ?? null,
     order: task.order ?? 0,
     reportTo: task.reportToIds,
     createdBy: nameOf(task.createdById),
@@ -430,6 +437,9 @@ export function toApiTaskBody(patch: Partial<UiTask>): Record<string, unknown> {
   if (patch.assignedTo !== undefined) body.assigneeIds = patch.assignedTo;
   if (patch.reportTo !== undefined) body.reportToIds = patch.reportTo;
   if (patch.assignedTeams !== undefined) body.teamIds = patch.assignedTeams;
+  // Null is meaningful here — it is how a card goes back to the backlog — so
+  // the check is against undefined, not against falsiness.
+  if (patch.sprintId !== undefined) body.sprintId = patch.sprintId;
   if (patch.order !== undefined) body.order = patch.order;
   if (patch.checklist !== undefined) {
     body.checklist = patch.checklist.map((c) => {

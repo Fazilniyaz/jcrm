@@ -223,6 +223,15 @@ export type Employee = {
   inviteExpiresAt: string | null;
   invitePending: boolean;
   inviteExpired: boolean;
+
+  /** Profile picture, or null for initials. */
+  avatar: string | null;
+  /** The line they wrote about themselves. A lapsed one arrives as nulls. */
+  status: UserStatus;
+  /** Derived from the heartbeat, never a stored boolean. */
+  presence: Presence;
+  /** The manual switch behind it: "auto" or "away". */
+  presenceMode: string;
 };
 
 /**
@@ -299,6 +308,10 @@ export type Project = {
   plan: Milestone[];
   /** Teams on this project — a reference; the people are in `members`. */
   teamIds: string[];
+  /** The sprint lane, or null for the project backlog. */
+  sprintId: string | null;
+  /** Denormalised by the API so a board row can label its lane. */
+  sprint?: { id: string; name: string; tone: string; state: SprintState } | null;
   /** Null means "follow the workspace default". */
   requireAcceptance: boolean | null;
   createdById: string;
@@ -376,6 +389,10 @@ export type Task = {
   assigneeIds: string[];
   /** Teams on this task — a reference; the people are in `assigneeIds`. */
   teamIds: string[];
+  /** The sprint lane, or null for the project backlog. */
+  sprintId: string | null;
+  /** Denormalised by the API so a board row can label its lane. */
+  sprint?: { id: string; name: string; tone: string; state: SprintState } | null;
   /** Manual sort position for the grid view. */
   order: number;
   reportToIds: string[];
@@ -643,4 +660,101 @@ export type UserStatus = {
   emoji: string | null;
   /** ISO. Null means "until I clear it". */
   until: string | null;
+};
+
+/* ---------------------------------------------------------------- sprints -- */
+
+export type SprintState = "planned" | "active" | "completed" | "cancelled";
+
+/**
+ * One lane of a project's board.
+ *
+ * `taskCount` / `doneCount` are computed server-side in a grouped query, not
+ * derived here — the board header needs them before the task list has
+ * necessarily loaded, and counting a page of tasks client-side would report
+ * the page rather than the sprint.
+ */
+export type Sprint = {
+  id: string;
+  companyId: string;
+  projectId: string;
+  name: string;
+  goal: string | null;
+  state: SprintState;
+  tone: string;
+  startDate: string | null;
+  endDate: string | null;
+  order: number;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+  taskCount?: number;
+  doneCount?: number;
+};
+
+export type SprintInput = {
+  projectId: string;
+  name: string;
+  goal?: string | null;
+  state?: SprintState;
+  tone?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  order?: number;
+};
+
+/* ------------------------------------------------------------ attendance -- */
+
+export type Shift = {
+  id: string;
+  userId: string;
+  /** The person's local calendar day, `YYYY-MM-DD`. See the Shift model. */
+  date: string;
+  inAt: string;
+  outAt: string | null;
+  breakMinutes: number;
+  breakAt: string | null;
+  note: string | null;
+  open: boolean;
+  onBreak: boolean;
+  /** Breaks already subtracted, counting up while the shift is open. */
+  workedMinutes: number;
+};
+
+export type MyClock = {
+  open: Shift | null;
+  shifts: Shift[];
+};
+
+export type RosterPerson = {
+  id: string;
+  name: string;
+  empId: string;
+  email: string;
+  roles: Role[];
+  branch: string | null;
+  tone: string;
+  avatar: string | null;
+  currentStatus: string;
+  presence: Presence;
+  status: UserStatus;
+  shift: Shift | null;
+  clockedIn: boolean;
+  onBreak: boolean;
+  workedMinutes: number;
+};
+
+export type ClockRoster = {
+  date: string;
+  in: RosterPerson[];
+  out: RosterPerson[];
+  counts: {
+    total: number;
+    in: number;
+    out: number;
+    onBreak: number;
+    /** Worked today and finished, as against never having started. */
+    finished: number;
+    notStarted: number;
+  };
 };

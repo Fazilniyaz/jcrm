@@ -20,6 +20,11 @@ import type {
   PlaygroundRoster,
   Team,
   TeamInput,
+  Sprint,
+  SprintInput,
+  MyClock,
+  Shift,
+  ClockRoster,
   Notification,
   Profile,
   Project,
@@ -221,6 +226,9 @@ export const api = createApi({
     "Notification",
     "Playground",
     "Team",
+    "Sprint",
+    "Clock",
+    "ClockRoster",
   ],
   endpoints: (build) => ({
     /* ---------------------------------------------------------- auth -- */
@@ -829,6 +837,76 @@ export const api = createApi({
       invalidatesTags: ["Team", "ProjectList", "TaskList"],
     }),
 
+    /* ------------------------------------------------------- sprints -- */
+
+    /*
+     * Lanes of a project board. Filing a task into a sprint writes
+     * `Task.sprintId`, so every sprint mutation also invalidates TaskList —
+     * the counts in a lane header come from the tasks, and leaving them cached
+     * is how a lane says "3 tasks" over an empty list.
+     */
+    listSprints: build.query<Sprint[], { projectId?: string } | void>({
+      query: (arg) =>
+        arg && arg.projectId ? `/sprints?projectId=${arg.projectId}` : "/sprints",
+      transformResponse: unwrap,
+      providesTags: ["Sprint"],
+    }),
+    createSprint: build.mutation<Sprint, SprintInput>({
+      query: (body) => ({ url: "/sprints", method: "POST", body }),
+      transformResponse: unwrap,
+      invalidatesTags: ["Sprint"],
+    }),
+    updateSprint: build.mutation<Sprint, { id: string; patch: Partial<Omit<SprintInput, "projectId">> }>({
+      query: ({ id, patch }) => ({ url: `/sprints/${id}`, method: "PATCH", body: patch }),
+      transformResponse: unwrap,
+      invalidatesTags: ["Sprint"],
+    }),
+    deleteSprint: build.mutation<{ id: string; releasedTasks: number }, string>({
+      query: (id) => ({ url: `/sprints/${id}`, method: "DELETE" }),
+      transformResponse: unwrap,
+      // Its tasks go back to the backlog rather than being deleted, so the
+      // task list has moved even though no task was removed.
+      invalidatesTags: ["Sprint", "TaskList"],
+    }),
+    assignTasksToSprint: build.mutation<
+      { sprintId: string | null; moved: number },
+      { taskIds: string[]; sprintId: string | null }
+    >({
+      query: (body) => ({ url: "/sprints/assign", method: "POST", body }),
+      transformResponse: unwrap,
+      invalidatesTags: ["Sprint", "TaskList"],
+    }),
+
+    /* --------------------------------------------------------- clock -- */
+
+    myClock: build.query<MyClock, void>({
+      query: () => "/clock/me",
+      transformResponse: unwrap,
+      providesTags: ["Clock"],
+    }),
+    clockIn: build.mutation<Shift, { date: string; note?: string }>({
+      query: (body) => ({ url: "/clock/in", method: "POST", body }),
+      transformResponse: unwrap,
+      // Both the caller's own card and the admin roster move on one punch.
+      invalidatesTags: ["Clock", "ClockRoster"],
+    }),
+    clockOut: build.mutation<Shift, { note?: string } | void>({
+      query: (body) => ({ url: "/clock/out", method: "POST", body: body ?? {} }),
+      transformResponse: unwrap,
+      invalidatesTags: ["Clock", "ClockRoster"],
+    }),
+    toggleBreak: build.mutation<Shift, void>({
+      query: () => ({ url: "/clock/break", method: "POST", body: {} }),
+      transformResponse: unwrap,
+      invalidatesTags: ["Clock", "ClockRoster"],
+    }),
+    clockRoster: build.query<ClockRoster, { date: string; q?: string }>({
+      query: ({ date, q }) =>
+        `/clock/roster?date=${encodeURIComponent(date)}${q ? `&q=${encodeURIComponent(q)}` : ""}`,
+      transformResponse: unwrap,
+      providesTags: ["ClockRoster"],
+    }),
+
     /* ---------------------------------------------------- playground -- */
 
     /*
@@ -962,6 +1040,16 @@ export const {
   useCreateTeamMutation,
   useUpdateTeamMutation,
   useDeleteTeamMutation,
+  useListSprintsQuery,
+  useCreateSprintMutation,
+  useUpdateSprintMutation,
+  useDeleteSprintMutation,
+  useAssignTasksToSprintMutation,
+  useMyClockQuery,
+  useClockInMutation,
+  useClockOutMutation,
+  useToggleBreakMutation,
+  useClockRosterQuery,
   usePlaygroundQuery,
   useModuleAccessMatrixQuery,
   useSetModuleAccessMutation,
