@@ -96,6 +96,7 @@ export function Playground() {
   const [branch, setBranch] = useState<string>("all");
   const [role, setRole] = useState<string>("all");
   const [sort, setSort] = useState<"name" | "kra" | "load">("name");
+  const [presence, setPresence] = useState<"all" | "online" | "away" | "offline">("all");
   const [focusedId, setFocusedId] = useState<string | null>(null);
 
   const headerRef = useRef<HTMLDivElement>(null);
@@ -149,6 +150,7 @@ export function Playground() {
 
     const filtered = all.filter((p) => {
       if (branch !== "all" && p.branch !== branch) return false;
+      if (presence !== "all" && p.presence !== presence) return false;
       if (role !== "all" && !p.roles.includes(role as PlaygroundPerson["roles"][number])) {
         return false;
       }
@@ -166,7 +168,7 @@ export function Playground() {
       if (sort === "load") return b.openTasks - a.openTasks;
       return a.name.localeCompare(b.name);
     });
-  }, [data, query, branch, role, sort]);
+  }, [data, query, branch, role, sort, presence]);
 
   /* Colours are resolved once, here, and handed to the canvas as rgb strings. */
   const scenePeople: ScenePerson[] = useMemo(
@@ -236,10 +238,12 @@ export function Playground() {
             icon={Gauge}
           />
           <StatTile
-            label="Branches"
-            value={String(stats?.branches.length ?? 0)}
-            hint={stats?.branches.slice(0, 2).join(", ") || "None recorded"}
-            t="purple"
+            label="Online now"
+            value={String((data?.people ?? []).filter((p) => p.presence === "online").length)}
+            hint={`${(data?.people ?? []).filter((p) => p.presence === "away").length} away · ${
+              stats?.branches.length ?? 0
+            } branches`}
+            t="green"
             icon={FolderKanban}
           />
         </Grid>
@@ -262,6 +266,13 @@ export function Playground() {
             />
           </div>
 
+          <Picker
+            label="Here"
+            value={presence}
+            onChange={(v) => setPresence(v as typeof presence)}
+            options={["online", "away", "offline"]}
+            format={(p) => (p === "online" ? "Online" : p === "away" ? "Away" : "Offline")}
+          />
           <Picker label="Branch" value={branch} onChange={setBranch} options={stats?.branches ?? []} />
           <Picker
             label="Role"
@@ -379,18 +390,17 @@ export function Playground() {
                         {p.name}
                       </span>
                       <span className="block truncate text-[0.6875rem] text-muted">
-                        {p.status?.text ? (
-                          <>
-                            {p.status.emoji ? `${p.status.emoji} ` : ""}
-                            {p.status.text}
-                          </>
-                        ) : (
-                          <>
-                            {toUiRole(p.roles)}
-                            {p.branch ? ` · ${p.branch}` : ""} · {p.empId}
-                          </>
-                        )}
+                        {toUiRole(p.roles)}
+                        {p.branch ? ` · ${p.branch}` : ""} · {p.empId}
                       </span>
+                      {/* Their own words, kept on its own line so it never
+                          displaces the facts above it. */}
+                      {p.status?.text && (
+                        <span className="mt-0.5 block truncate text-[0.6875rem] text-heading">
+                          {p.status.emoji ? `${p.status.emoji} ` : ""}
+                          {p.status.text}
+                        </span>
+                      )}
                     </span>
                     <span className="hidden w-28 shrink-0 sm:block">
                       <Progress value={p.kra} t={p.kra >= 70 ? "sky" : p.kra >= 40 ? "orange" : "red"} />

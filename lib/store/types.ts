@@ -632,6 +632,21 @@ export const NOTIFICATION_KINDS = [
   "leave-withdrawn",
   "leave-reopened",
   "calendar-event",
+  /*
+   * Project membership. These come from the API and had no entry here, so the
+   * inbox looked them up, got undefined and threw — see the fallback in
+   * components/modules/notifications.tsx for why that can no longer happen.
+   *
+   * invited/assigned are the two halves of the acceptance policy: you are
+   * asked, or you are told.
+   */
+  "project-invited",
+  "project-lead-invited",
+  "project-assigned",
+  "project-lead-assigned",
+  /* The answer coming back to whoever sent the invitation. */
+  "project-accepted",
+  "project-declined",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -668,6 +683,12 @@ export const NOTIFICATION_TONE: Record<NotificationKind, Tone> = {
   "leave-withdrawn": "slate",
   "leave-reopened": "orange",
   "calendar-event": "blue",
+  "project-invited": "purple",
+  "project-lead-invited": "purple",
+  "project-assigned": "blue",
+  "project-lead-assigned": "blue",
+  "project-accepted": "sky",
+  "project-declined": "red",
 };
 
 /* -------------------------------------------------------------- settings -- */

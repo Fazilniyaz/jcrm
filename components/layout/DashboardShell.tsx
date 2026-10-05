@@ -109,7 +109,7 @@ export default function DashboardShell({
    * resolving we list nothing rather than guess — showing a module and taking
    * it away a moment later is worse than a brief empty rail.
    */
-  const visibleModules: readonly ModuleSlug[] =
+  const granted: readonly ModuleSlug[] =
     session.status === "user"
       ? fromApiModuleSlugs(session.user.modules)
       : session.status === "master"
@@ -117,6 +117,19 @@ export default function DashboardShell({
         : session.status === "loading"
           ? EMPTY_MODULES
           : modules;
+
+  /*
+   * My Profile is always on for a signed-in account.
+   *
+   * It is the one module that is about YOU rather than the company's work: your
+   * picture, your name, your status. It gates nothing — it writes through the
+   * same /settings endpoints every account already has — so there is no version
+   * of "this person may not open their own profile" worth honouring. Listing it
+   * unconditionally also means it does not disappear just because an older API
+   * build does not know the slug yet.
+   */
+  const visibleModules: readonly ModuleSlug[] =
+    granted.length > 0 && !granted.includes("me") ? [...granted, "me"] : granted;
 
   /*
    * Two independent things, deliberately not merged:

@@ -14,6 +14,7 @@ import {
   Trash2,
   Undo2,
   Inbox,
+  FolderKanban,
 } from "lucide-react";
 import {
   Card,
@@ -54,6 +55,12 @@ const KIND_ICON: Record<NotificationKind, IconType> = {
   "leave-withdrawn": Undo2,
   "leave-reopened": Undo2,
   "calendar-event": CalendarDays,
+  "project-invited": FolderKanban,
+  "project-lead-invited": FolderKanban,
+  "project-assigned": FolderKanban,
+  "project-lead-assigned": FolderKanban,
+  "project-accepted": ClipboardCheck,
+  "project-declined": CircleAlert,
 };
 
 const KIND_LABEL: Record<NotificationKind, string> = {
@@ -67,6 +74,12 @@ const KIND_LABEL: Record<NotificationKind, string> = {
   "leave-withdrawn": "Leave withdrawn",
   "leave-reopened": "Decision undone",
   "calendar-event": "Calendar",
+  "project-invited": "Project invite",
+  "project-lead-invited": "Lead invite",
+  "project-assigned": "Added to project",
+  "project-lead-assigned": "Made project lead",
+  "project-accepted": "Invite accepted",
+  "project-declined": "Invite declined",
 };
 
 type Filter = "all" | "unread" | "tasks" | "qc" | "leave";
@@ -217,8 +230,17 @@ export function Notifications() {
         ) : (
           <ul className="divide-y divide-line">
             {visible.map((n) => {
-              const Icon = KIND_ICON[n.kind];
-              const t = NOTIFICATION_TONE[n.kind];
+              /*
+               * Never trust the kind to be one this build knows.
+               *
+               * The API owns the vocabulary and can add to it at any time; a
+               * kind added there and not here used to take the whole inbox
+               * down with "cannot read properties of undefined". An unknown
+               * kind now reads as a neutral message instead, which is a far
+               * better answer than a blank screen.
+               */
+              const Icon = KIND_ICON[n.kind] ?? Inbox;
+              const t = NOTIFICATION_TONE[n.kind] ?? "slate";
               return (
                 <li key={n.id}>
                   {/* Reading is the only interaction, so the whole row is the
@@ -257,7 +279,7 @@ export function Notifications() {
                       </span>
 
                       <span className="mt-1.5 inline-block">
-                        <Badge t={t}>{KIND_LABEL[n.kind]}</Badge>
+                        <Badge t={t}>{KIND_LABEL[n.kind] ?? "Update"}</Badge>
                       </span>
                     </span>
 
