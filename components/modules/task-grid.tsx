@@ -1039,7 +1039,7 @@ function TaskRow({
               onDragEnd={onDragEnd}
               aria-label="Drag to reorder or move to another project"
               title="Drag to reorder, or onto another project to move it"
-              className="shrink-0 cursor-grab rounded-sm p-0.5 text-muted opacity-0 hover:bg-hover active:cursor-grabbing group-hover/row:opacity-100"
+              className="shrink-0 cursor-grab rounded-sm p-0.5 text-muted opacity-40 transition-opacity hover:bg-hover hover:opacity-100 active:cursor-grabbing group-hover/row:opacity-100"
             >
               <GripVertical size={13} />
             </span>
@@ -1423,7 +1423,7 @@ function GroupBlock({
       {open && (
         <div
           onDragOver={(e) => {
-            if (!drag.taskId) return;
+            if (!drag.active()) return;
             e.preventDefault();
             e.dataTransfer.dropEffect = "move";
             drag.setOver(group.id, null);
@@ -1471,7 +1471,7 @@ function GroupBlock({
                 }}
                 onDragEnd={drag.end}
                 onDragOverRow={(e) => {
-                  if (!drag.taskId) return;
+                  if (!drag.active()) return;
                   e.preventDefault();
                   e.stopPropagation();
                   e.dataTransfer.dropEffect = "move";
@@ -1549,6 +1549,8 @@ const GROUP_TONES = ["primary", "blue", "purple", "teal", "orange", "pink", "sky
 
 type DragApi = {
   taskId: string | null;
+  /** Reads the ref, so the first dragover is not missed. */
+  active: () => boolean;
   overGroup: string | null;
   overIndex: number | null;
   start: (taskId: string, groupId: string) => void;
@@ -1561,6 +1563,14 @@ export function GridView({ tasks, onOpen }: { tasks: Task[]; onOpen: (t: Task) =
   const { state, updateTask } = useStore();
   const { visible, keys, toggle } = useVisibleColumns();
 
+  /*
+   * `dragId` is mirrored in a ref.
+   *
+   * `drop` runs from a native event handler, and reading the id from state
+   * there can see the value from the render the handler was created in. The
+   * ref is always current; the state exists only so the dragged row can dim.
+   */
+  const dragRef = useRef<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overGroup, setOverGroup] = useState<string | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
@@ -1609,7 +1619,8 @@ export function GridView({ tasks, onOpen }: { tasks: Task[]; onOpen: (t: Task) =
    * anything other than ordering.
    */
   function drop(groupId: string, index: number | null) {
-    const taskId = dragId;
+    const taskId = dragRef.current;
+    dragRef.current = null;
     setDragId(null);
     setOverGroup(null);
     setOverIndex(null);
@@ -1650,17 +1661,28 @@ export function GridView({ tasks, onOpen }: { tasks: Task[]; onOpen: (t: Task) =
 
   const drag: DragApi = {
     taskId: dragId,
+    active: () => dragRef.current !== null,
     overGroup,
     overIndex,
-    start: (taskId) => setDragId(taskId),
+    start: (taskId) => {
+      dragRef.current = taskId;
+      setDragId(taskId);
+    },
     end: () => {
+      dragRef.current = null;
       setDragId(null);
       setOverGroup(null);
       setOverIndex(null);
     },
+    /*
+     * `dragover` fires continuously while the pointer moves. Setting state on
+     * every one of them re-rendered the whole grid dozens of times a second,
+     * which is what made dragging feel broken: the row under the cursor kept
+     * being torn down and rebuilt mid-gesture. Only a real change writes.
+     */
     setOver: (groupId, index) => {
-      setOverGroup(groupId);
-      setOverIndex(index);
+      setOverGroup((g) => (g === groupId ? g : groupId));
+      setOverIndex((i) => (i === index ? i : index));
     },
     drop,
   };

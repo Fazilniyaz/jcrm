@@ -34,6 +34,7 @@ import { usePlaygroundQuery } from "@/lib/api/api";
 import { useSession } from "@/lib/api/session";
 import { toUiRole } from "@/lib/api/adapters";
 import type { PlaygroundPerson } from "@/lib/api/types";
+import { PersonAvatar } from "@/components/ui/PersonAvatar";
 import type { Tone } from "@/lib/ui/tone";
 import type { ScenePerson } from "./Scene";
 
@@ -180,7 +181,7 @@ export function Playground() {
           kra: p.kra,
           colour: resolved(t.solid, "#2b7cb5"),
           onColour: resolved(t.onSolid, "#ffffff"),
-          busy: p.currentStatus === "workAssigned",
+          busy: p.presence === "online",
         };
       }),
     [people],
@@ -365,14 +366,30 @@ export function Playground() {
                       on ? "bg-hover" : ""
                     }`}
                   >
-                    <Avatar initials={initialsOf(p.name)} t={t} size={34} />
+                    <PersonAvatar
+                      name={p.name}
+                      initials={initialsOf(p.name)}
+                      avatar={p.avatar}
+                      t={t}
+                      size={34}
+                      presence={p.presence}
+                    />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[0.8125rem] font-semibold text-heading">
                         {p.name}
                       </span>
                       <span className="block truncate text-[0.6875rem] text-muted">
-                        {toUiRole(p.roles)}
-                        {p.branch ? ` · ${p.branch}` : ""} · {p.empId}
+                        {p.status?.text ? (
+                          <>
+                            {p.status.emoji ? `${p.status.emoji} ` : ""}
+                            {p.status.text}
+                          </>
+                        ) : (
+                          <>
+                            {toUiRole(p.roles)}
+                            {p.branch ? ` · ${p.branch}` : ""} · {p.empId}
+                          </>
+                        )}
                       </span>
                     </span>
                     <span className="hidden w-28 shrink-0 sm:block">
@@ -438,12 +455,25 @@ function PersonDetail({ person }: { person: PlaygroundPerson }) {
     <Card className="h-full">
       <CardBody className="space-y-4">
         <div className="flex items-center gap-3">
-          <Avatar initials={initialsOf(person.name)} t={t} size={52} />
+          <PersonAvatar
+            name={person.name}
+            initials={initialsOf(person.name)}
+            avatar={person.avatar}
+            t={t}
+            size={52}
+            presence={person.presence}
+          />
           <div className="min-w-0">
             <p className="truncate text-[1rem] font-semibold text-heading">{person.name}</p>
             <p className="truncate text-[0.75rem] text-muted">
               {toUiRole(person.roles)} · {person.empId}
             </p>
+            {person.status?.text && (
+              <p className="mt-0.5 truncate text-[0.75rem] text-heading">
+                {person.status.emoji ? `${person.status.emoji} ` : ""}
+                {person.status.text}
+              </p>
+            )}
           </div>
         </div>
 

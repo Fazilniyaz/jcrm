@@ -95,6 +95,12 @@ export type SessionUser = {
   branchId: string | null;
   phone: string | null;
   tone: ToneApi;
+  avatar: string | null;
+  status: UserStatus;
+  /** Derived from the heartbeat — see the API's lib/presence.ts. */
+  presence: Presence;
+  /** The manual switch behind it: "auto" or "away". */
+  presenceMode: string;
   modules: string[];
   /** slug -> "view" | "edit" for everything in `modules`. */
   moduleLevels: Record<string, AccessLevel>;
@@ -577,6 +583,9 @@ export type PlaygroundPerson = {
   currentStatus: string;
   branch: string | null;
   tone: ToneApi;
+  avatar: string | null;
+  presence: Presence;
+  status: UserStatus;
   kra: number;
   phone: string | null;
   joinedAt: string;
@@ -623,4 +632,15 @@ export type TeamInput = {
   tone?: string;
   leadId?: string | null;
   memberIds: string[];
+};
+
+/* --------------------------------------------------------------- presence -- */
+
+export type Presence = "online" | "away" | "offline";
+
+export type UserStatus = {
+  text: string | null;
+  emoji: string | null;
+  /** ISO. Null means "until I clear it". */
+  until: string | null;
 };

@@ -787,6 +787,23 @@ export const api = createApi({
       transformResponse: unwrap,
     }),
 
+    /* ------------------------------------------------ me / presence -- */
+
+    setStatus: build.mutation<unknown, { text?: string | null; emoji?: string | null; until?: string | null }>({
+      query: (body) => ({ url: "/settings/status", method: "PATCH", body }),
+      transformResponse: unwrap,
+      invalidatesTags: ["Session", "Profile", "Playground"],
+    }),
+    /*
+     * The heartbeat. Deliberately invalidates NOTHING: it runs on a timer, and
+     * refetching the session every minute because of it would turn a cheap
+     * keepalive into a storm of requests.
+     */
+    touchPresence: build.mutation<{ presence: string; mode: string }, { presence?: "auto" | "away" }>({
+      query: (body) => ({ url: "/settings/presence", method: "POST", body }),
+      transformResponse: unwrap,
+    }),
+
     /* --------------------------------------------------------- teams -- */
 
     listTeams: build.query<Team[], void>({
@@ -939,6 +956,8 @@ export const {
   useGetProfileQuery,
   useUpdateProfileMutation,
   useChangePasswordMutation,
+  useSetStatusMutation,
+  useTouchPresenceMutation,
   useListTeamsQuery,
   useCreateTeamMutation,
   useUpdateTeamMutation,

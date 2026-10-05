@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import type { ComponentType, CSSProperties } from "react";
 
 /**
  * An icon component — in practice always a lucide glyph.
@@ -17,5 +17,8 @@ export type IconType = ComponentType<{
   size?: number | string;
   className?: string;
   strokeWidth?: number | string;
+  /** Icons are coloured inline often enough that leaving this out just pushes
+   *  callers back to `React.ElementType` and the `never` problem above. */
+  style?: CSSProperties;
   "aria-hidden"?: boolean | "true" | "false";
 }>;

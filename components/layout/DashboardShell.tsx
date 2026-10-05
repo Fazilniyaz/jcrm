@@ -5,6 +5,7 @@ import Sidebar from "./Sidebar";
 import Header from "./Header";
 import { fromApiModuleSlugs, type ModuleSlug } from "@/lib/modules";
 import { applyThemeMode, useThemeMode } from "@/lib/theme";
+import { usePresenceHeartbeat } from "@/lib/use-presence";
 import { logout, switchPortal } from "@/lib/actions";
 import { useLogoutMutation } from "@/lib/api/api";
 import { useSession } from "@/lib/api/session";
@@ -130,6 +131,11 @@ export default function DashboardShell({
   // in localStorage by lib/theme — so a dark reader stays dark across reloads
   // and the header toggle, the Settings card and this shell can never disagree.
   const dark = useThemeMode() === "dark";
+
+  // Stamps `lastSeenAt` while the app is open — the only thing the green dot
+  // anywhere in the product is derived from. Only for a real session; a demo
+  // portal has nobody to mark present.
+  usePresenceHeartbeat(session.status === "user");
   const [, startTransition] = useTransition();
   const [apiLogout] = useLogoutMutation();
 
