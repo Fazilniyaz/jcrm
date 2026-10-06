@@ -7,6 +7,11 @@ Two services, two different homes:
 | `jcrm` | Next.js 16 app | **Vercel** | What Vercel is built for. |
 | `jcrmbe` | Express 5 + Prisma + MongoDB | **Render / Railway / Fly.io** | A long-lived Node process. See the warning below. |
 
+> **Deploying everything to one AWS EC2 instance instead?** That is the
+> simplest option of the three and the only one where the app and the API share
+> an origin — see **`docs/DEPLOY-AWS-EC2.md`**, which ends at
+> `http://<ELASTIC_IP>` serving the whole CRM.
+>
 > **Deploying the API to Vercel instead?** That is supported — `api/index.ts`
 > and `vercel.json` are in the `jcrmbe` repo — but it has its own set of
 > trade-offs and its own runbook: **`jcrmbe/docs/DEPLOY-VERCEL.md`**. That
@@ -87,7 +92,11 @@ Run it again after any schema change — MongoDB has no migration files.
 
    | Key | Value |
    |---|---|
-   | `NEXT_PUBLIC_API_URL` | `https://your-api.onrender.com/api/v1` |
+   | `NEXT_PUBLIC_API_URL` | `https://your-api.onrender.com` |
+
+   **The ORIGIN only — no `/api/v1`.** The client appends that itself
+   (`lib/api/token.ts`), so including it produces `/api/v1/api/v1` and every
+   request 404s.
 
    Set it for Production, Preview and Development. It is `NEXT_PUBLIC_`, so it
    is **inlined at build time** — changing it later needs a redeploy, not just
