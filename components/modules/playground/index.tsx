@@ -35,6 +35,8 @@ import { toUiRole } from "@/lib/api/adapters";
 import type { PlaygroundPerson } from "@/lib/api/types";
 import { PersonAvatar } from "@/components/ui/PersonAvatar";
 import { StatusTag } from "@/components/ui/StatusTag";
+import { ClockStatsBody } from "../clock-stats";
+import { ReportStarsBody } from "../reports";
 import type { Tone } from "@/lib/ui/tone";
 import type { ScenePerson } from "./Scene";
 
@@ -464,6 +466,14 @@ function Picker({
 
 function PersonDetail({ person }: { person: PlaygroundPerson }) {
   const t = toneOf(person.tone);
+  const session = useSession();
+  /*
+   * Someone else's hours are a super admin's to read — the API enforces it on
+   * /clock/stats, and asking anyway would just draw a panel that fails. The
+   * module itself can be granted to a manager, so this is not redundant.
+   */
+  const canSeeHours =
+    session.status === "user" && session.user.roles.includes("superAdmin");
   return (
     <Card className="h-full">
       <CardBody className="space-y-4">
@@ -512,6 +522,26 @@ function PersonDetail({ person }: { person: PlaygroundPerson }) {
           <Stat label="Done" value={person.doneTasks} />
           <Stat label="Projects" value={person.projects.length} />
         </div>
+
+        {canSeeHours && (
+          <>
+            <div className="border-t border-line pt-3">
+              <p className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted">
+                Attendance
+              </p>
+              {/* Keyed on the person so switching focus refetches rather than
+                  showing the last one's month while the new one loads. */}
+              <ClockStatsBody key={person.id} userId={person.id} />
+            </div>
+
+            <div className="border-t border-line pt-3">
+              <p className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted">
+                Daily reports
+              </p>
+              <ReportStarsBody key={person.id} userId={person.id} />
+            </div>
+          </>
+        )}
 
         <div>
           <p className="mb-2 text-[0.6875rem] font-semibold uppercase tracking-wide text-muted">

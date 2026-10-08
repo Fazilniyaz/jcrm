@@ -55,6 +55,7 @@ import { useSession } from "@/lib/api/session";
 import { toUiRole } from "@/lib/api/adapters";
 import { useNow } from "@/lib/use-now";
 import { clockTime, formatMinutes, initialsOf } from "@/lib/store/selectors";
+import { ClockStatsPanel } from "./clock-stats";
 import type { RosterPerson, Shift } from "@/lib/api/types";
 import type { Tone } from "@/lib/ui/tone";
 
@@ -92,6 +93,11 @@ export function LiveClock() {
   return (
     <div className="space-y-4">
       <OwnClock />
+      {/*
+        The totals, for everyone — an employee's own hours are not an admin
+        surface. The server answers for the caller when no userId is sent.
+      */}
+      <ClockStatsPanel title="Your hours" />
       {isSuperAdmin && <RosterAttendance />}
     </div>
   );
@@ -175,6 +181,12 @@ function OwnClock() {
               )}
             </div>
 
+            {/*
+              Deliberately NOT today/week/month: those are in the stats panel
+              below, read from the server, and two sets of the same three
+              figures computed two different ways is how they come to disagree.
+              These are the three the panel does not cover.
+            */}
             <dl className="mt-5 grid grid-cols-3 gap-2 border-t border-line pt-4 text-left">
               {[
                 { k: "Last 5 days", v: formatMinutes(recentMinutes) },

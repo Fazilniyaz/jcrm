@@ -22,6 +22,7 @@ import {
   Inbox,
   Orbit,
   UsersRound,
+  ClipboardList,
 } from "lucide-react";
 import type { IconType } from "./ui/icon";
 
@@ -48,7 +49,8 @@ export type ModuleSlug =
   | "checklist"
   | "requests"
   | "playground"
-  | "teams";
+  | "teams"
+  | "reports";
 
 export type ModuleDef = {
   slug: ModuleSlug;
@@ -144,6 +146,13 @@ export const MODULES: readonly ModuleDef[] = [
     group: "People",
     icon: Clock,
     blurb: "Clock in, clock out and review this week's hours.",
+  },
+  {
+    slug: "reports",
+    label: "Reports",
+    group: "People",
+    icon: ClipboardList,
+    blurb: "What each person did today, day by day, rated out of five.",
   },
   {
     slug: "salary",
@@ -272,6 +281,10 @@ export const OPTIONAL_MODULES: readonly ModuleSlug[] = [
   // Appended too. Managers and team leaders get it from their role; everyone
   // else needs it granted.
   "teams",
+  // Appended as well. Every employee role gets it from the API; a client or a
+  // vendor does not write up a working day, so it is grantable rather than
+  // mandatory.
+  "reports",
 ];
 
 export function isMandatory(slug: ModuleSlug): boolean {

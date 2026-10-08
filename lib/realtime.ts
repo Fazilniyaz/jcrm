@@ -94,56 +94,72 @@ export function useRealtime(enabled: boolean, myUserId?: string) {
       return;
     }
 
-    const token = getAccessToken();
-    if (!token) return; // the next rotation brings us back
-
     /*
-     * An empty NEXT_PUBLIC_API_URL means "same origin", which is how the
-     * single-instance deploy is wired — and `io()` with no URL is exactly
-     * that, so it must not be called with an empty string instead.
+     * Connect when there IS a token, and subscribe either way.
+     *
+     * The access token is held in memory, so a cold load has none until
+     * /auth/refresh answers. Subscribing first and connecting second is what
+     * makes that order irrelevant: the socket opens on the rotation that
+     * produces the first token, and reopens on every later one.
      */
-    const options = {
-      path: "/socket.io",
-      auth: { token },
-      withCredentials: true,
-      // Poll first, then upgrade. A proxy that refuses the upgrade keeps
-      // working rather than never connecting at all.
-      transports: ["polling", "websocket"] as string[],
-      reconnectionDelay: 1_000,
-      reconnectionDelayMax: 15_000,
+    const connect = (token: string) => {
+      teardown();
+
+      /*
+       * An empty NEXT_PUBLIC_API_URL means "same origin", which is how the
+       * single-instance deploy is wired — and `io()` with no URL is exactly
+       * that, so it must not be called with an empty string instead.
+       */
+      const options = {
+        path: "/socket.io",
+        auth: { token },
+        withCredentials: true,
+        // Poll first, then upgrade. A proxy that refuses the upgrade keeps
+        // working rather than never connecting at all.
+        transports: ["polling", "websocket"] as string[],
+        reconnectionDelay: 1_000,
+        reconnectionDelayMax: 15_000,
+      };
+
+      const next = API_BASE_URL ? io(API_BASE_URL, options) : io(options);
+      socket = next;
+
+      next.on("connect", () => setConnected(true));
+      next.on("disconnect", () => setConnected(false));
+      next.on("connect_error", () => setConnected(false));
+
+      next.on("change", (change: Change) => {
+        if (myUserId && change.by === myUserId) return;
+        const tags = TAGS[change.resource];
+        if (!tags) return;
+        dispatch(api.util.invalidateTags(tags as never));
+      });
     };
 
-    socket = API_BASE_URL ? io(API_BASE_URL, options) : io(options);
-
-    socket.on("connect", () => setConnected(true));
-    socket.on("disconnect", () => setConnected(false));
-    socket.on("connect_error", () => setConnected(false));
-
-    socket.on("change", (change: Change) => {
-      if (myUserId && change.by === myUserId) return;
-      const tags = TAGS[change.resource];
-      if (!tags) return;
-      dispatch(api.util.invalidateTags(tags as never));
-    });
-
     /*
-     * The access token is a 15-minute credential and the socket outlives it.
-     * On every rotation the server is handed the new one and re-derives the
-     * rooms; on sign-out the token becomes null and the socket goes with it.
+     * The token is a 15-minute credential and the socket outlives it. On a
+     * rotation the server is handed the new one and re-derives the rooms; on
+     * sign-out the token becomes null and the socket goes with it.
      */
     const stopWatchingToken = onAccessTokenChange((next) => {
       if (!next) {
         teardown();
         return;
       }
-      if (!socket) return;
+      if (!socket) {
+        connect(next);
+        return;
+      }
       socket.auth = { token: next };
       socket.emit("reauth", next, (okFlag: boolean) => {
         // Refused means the token is for someone else, or the account is gone.
         // Reconnecting from scratch is the only honest recovery.
-        if (!okFlag) socket?.connect();
+        if (!okFlag) connect(next);
       });
     });
+
+    const token = getAccessToken();
+    if (token) connect(token);
 
     return () => {
       stopWatchingToken();

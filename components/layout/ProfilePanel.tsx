@@ -111,6 +111,16 @@ export default function ProfilePanel({
   const [pinned, setPinned] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /*
+   * Was the panel already pinned when this press began?
+   *
+   * Read on pointerdown, which happens BEFORE focus and before click. By the
+   * time the click handler runs, hovering has opened the panel and focusing
+   * the button has pinned it, so asking "is it pinned?" there always says yes
+   * and the click closed the panel it had just opened. This remembers the
+   * state the press actually started from.
+   */
+  const pinnedOnPress = useRef(false);
 
   const [updateProfile, saveState] = useUpdateProfileMutation();
   const [setStatus, statusState] = useSetStatusMutation();
@@ -287,9 +297,18 @@ export default function ProfilePanel({
     >
       <button
         type="button"
+        onPointerDown={() => {
+          pinnedOnPress.current = open && pinned;
+        }}
+        /* A click pins it open; a second click on a pinned panel closes it. */
         onClick={() => {
-          setOpen((o) => !o || !pinned);
-          setPinned((p) => !(open && p));
+          if (pinnedOnPress.current) {
+            setOpen(false);
+            setPinned(false);
+          } else {
+            setOpen(true);
+            setPinned(true);
+          }
         }}
         aria-expanded={open}
         aria-haspopup="dialog"
