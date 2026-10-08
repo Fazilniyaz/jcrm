@@ -13,6 +13,14 @@ import type {
   Task,
 } from "./types";
 import { nextCodeFrom } from "./codes";
+import { revisionOf, useMappedList } from "./revision";
+import type {
+  Client as ApiClientRow,
+  Employee as ApiEmployeeRow,
+  Notification as ApiNotificationRow,
+  Project as ApiProjectRow,
+  Task as ApiTaskRow,
+} from "@/lib/api/types";
 import {
   useClearNotificationsMutation,
   useCreateClientMutation,
@@ -180,6 +188,82 @@ export default function ApiStoreProvider({ children }: { children: React.ReactNo
   const [clearNotificationsMutation] = useClearNotificationsMutation();
   const [updateWorkspaceMutation] = useUpdateWorkspaceMutation();
 
+  /*
+   * The derivations, each in its OWN memo keyed by its own content.
+   *
+   * These used to be statements inside the single big useMemo below, whose
+   * dependency list included `local` — a value that changes identity whenever
+   * anything in the local store changes, and every mutation trigger besides.
+   * So clocking in re-mapped every task; a 30-second poll of notifications
+   * re-mapped the entire employee roster; and each of those produced a new
+   * store value that re-rendered all twenty-odd components reading it.
+   *
+   * Split up and keyed on revisions, each list is rebuilt only when that list
+   * actually changed on the server. The arrays below therefore keep their
+   * identity across unrelated updates, which is what lets the memos inside the
+   * module components hold too.
+   *
+   * They are computed unconditionally — hooks cannot be called behind the
+   * session check — and simply ignored on the pass-through paths. The inputs
+   * are empty until a session exists, so that costs nothing.
+   */
+  const employees = useMappedList<ApiEmployeeRow, Employee>(employeesQuery.data, (rows) =>
+    rows.map(toUiEmployee),
+  );
+  const projects = useMappedList<ApiProjectRow, Project>(projectsQuery.data, (rows) =>
+    rows.map(toUiProject),
+  );
+  const clients = useMappedList<ApiClientRow, Client>(clientsQuery.data, (rows) =>
+    rows.map(toUiClient),
+  );
+
+  // Tasks carry `createdBy` as a display name, so the lookup is built from the
+  // roster we already have rather than asking the API to denormalise it. The
+  // roster's revision is passed as the extra key: without it a rename would
+  // leave the old name on every task until the task list itself changed.
+  const employeeRevision = revisionOf(employeesQuery.data);
+  const tasks = useMappedList<ApiTaskRow, Task>(
+    tasksQuery.data,
+    (rows) => {
+      const nameById = new Map(employees.map((e) => [e.id, e.name]));
+      const nameOf = (id: string) => nameById.get(id) ?? "—";
+      return rows.map((task) => toUiTask(task, nameOf));
+    },
+    employeeRevision,
+  );
+
+  // Server-raised notifications (tasks, projects, QC), newest-first merge with
+  // the local store's own below.
+  const serverNotifications = useMappedList<ApiNotificationRow, Notification>(
+    notificationsQuery.data,
+    (rows) =>
+      rows.map((n) => ({
+        id: n.id,
+        to: n.toUserId,
+        kind: n.kind as Notification["kind"],
+        title: n.title,
+        detail: n.detail,
+        at: n.createdAt,
+        read: n.read,
+        ...(n.taskId ? { taskId: n.taskId } : {}),
+      })),
+    "",
+    // Notification has no `updatedAt`, and `read` flips in place when the
+    // panel is opened. Stamping on it is what makes that flip visible.
+    (n) => (n.read ? "1" : "0"),
+  );
+
+  const serverIds = useMemo(
+    () => new Set(serverNotifications.map((n) => n.id)),
+    [serverNotifications],
+  );
+
+  const notifications = useMemo(
+    () =>
+      [...serverNotifications, ...local.notifications].sort((a, b) => b.at.localeCompare(a.at)),
+    [serverNotifications, local.notifications],
+  );
+
   const value = useMemo<StoreValue>(() => {
     /*
      * While the session is still resolving, report NOT hydrated.
@@ -195,33 +279,6 @@ export default function ApiStoreProvider({ children }: { children: React.ReactNo
 
     const me = session.user;
     const isAdmin = me.roles.includes("superAdmin") || me.isOwner;
-
-    const employees: Employee[] = (employeesQuery.data ?? []).map(toUiEmployee);
-    const projects: Project[] = (projectsQuery.data ?? []).map(toUiProject);
-    const clients: Client[] = (clientsQuery.data ?? []).map(toUiClient);
-
-    // Tasks carry `createdBy` as a display name, so the lookup is built from
-    // the roster we already have rather than asking the API to denormalise it.
-    const nameById = new Map(employees.map((e) => [e.id, e.name]));
-    const nameOf = (id: string) => nameById.get(id) ?? "—";
-    const tasks: Task[] = (tasksQuery.data ?? []).map((task) => toUiTask(task, nameOf));
-
-    // Server-raised notifications (tasks, projects, QC) plus whatever the local
-    // store still raises (leave, calendar), newest first.
-    const serverNotifications: Notification[] = (notificationsQuery.data ?? []).map((n) => ({
-      id: n.id,
-      to: n.toUserId,
-      kind: n.kind as Notification["kind"],
-      title: n.title,
-      detail: n.detail,
-      at: n.createdAt,
-      read: n.read,
-      ...(n.taskId ? { taskId: n.taskId } : {}),
-    }));
-    const serverIds = new Set(serverNotifications.map((n) => n.id));
-    const notifications = [...serverNotifications, ...local.notifications].sort((a, b) =>
-      b.at.localeCompare(a.at),
-    );
 
     const currentEmployee = employees.find((e) => e.id === me.id);
 
@@ -439,17 +496,21 @@ export default function ApiStoreProvider({ children }: { children: React.ReactNo
   }, [
     local,
     session,
-    employeesQuery.data,
+    // The derived lists, not the raw query data: these hold their identity
+    // across a poll that changed nothing, which is the whole point of the
+    // memos above. Depending on `*.data` here would undo it.
+    employees,
+    projects,
+    tasks,
+    clients,
+    notifications,
+    serverIds,
     employeesQuery.isLoading,
-    projectsQuery.data,
     projectsQuery.isLoading,
-    tasksQuery.data,
     tasksQuery.isLoading,
-    clientsQuery.data,
     createClientMutation,
     updateClientMutation,
     deleteClientMutation,
-    notificationsQuery.data,
     workspaceQuery.data,
     createEmployeeMutation,
     updateEmployeeMutation,
