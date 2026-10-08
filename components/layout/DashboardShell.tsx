@@ -191,6 +191,17 @@ export default function DashboardShell({
     <StoreProvider currentUser={identity.name} currentPortal={portal}>
       <ApiStoreProvider>
       <div className="min-h-screen">
+        {/*
+          First thing in the tab order, visible only while focused.
+
+          The rail carries every module link, so a keyboard or screen-reader
+          user had to walk the whole navigation on every page before reaching
+          the content — and on the modules with a long rail that is twenty-odd
+          stops to read one table.
+        */}
+        <a href="#module-content" className="skip-link">
+          Skip to content
+        </a>
         <Sidebar
           open={visible}
           onClose={() => setMobileOpen(false)}
@@ -227,7 +238,9 @@ export default function DashboardShell({
             }
             onLogout={signOut}
           />
-          <main className="px-2">
+          {/* tabIndex -1 so the skip link can actually move focus here, not
+              just scroll to it. */}
+          <main id="module-content" tabIndex={-1} className="px-2">
             <div className="px-2 py-4">
               <BranchBanner />
               {children}

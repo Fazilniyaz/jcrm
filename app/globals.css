@@ -320,6 +320,42 @@ a { color: inherit; text-decoration: none; }
   outline-offset: 2px;
 }
 
+/*
+ * The skip link. Off-canvas until it takes focus, then a real control.
+ *
+ * Positioned rather than hidden with `display: none` or `visibility: hidden`,
+ * because both of those take an element OUT of the tab order — which is the
+ * one thing this element exists to be in. `clip-path` over the old `clip`
+ * technique: the box still has size, so a screen reader announces it.
+ *
+ * `main` is given tabindex="-1" so activating this moves focus as well as
+ * scrolling; it gets no focus ring of its own, since the ring belongs to the
+ * control that was clicked, not to the region that received focus.
+ */
+.skip-link {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 300;
+  padding: 0.5rem 0.875rem;
+  border-radius: 5px;
+  background: rgb(var(--primary-rgb));
+  color: rgb(var(--on-primary-rgb));
+  font-size: 0.8125rem;
+  font-weight: 500;
+  box-shadow: var(--pop-box-shadow);
+  transform: translateY(calc(-100% - 1rem));
+  transition: transform 150ms ease-out;
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+#module-content:focus {
+  outline: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
