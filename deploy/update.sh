@@ -37,6 +37,17 @@ npm ci
 # this runs. See the runbook.
 npm run build
 
+# The nginx site is COPIED into /etc, not symlinked — it is root-owned and a
+# symlink into a home directory would let a repo pull change the web server's
+# config without anyone deciding to. So a change to it here does not reach the
+# running server by itself; say so rather than letting it sit unnoticed for a
+# release or two. (The /socket.io block that realtime needs arrived this way.)
+if ! diff -q "$APP_DIR/deploy/nginx.conf" /etc/nginx/sites-available/jadvix >/dev/null 2>&1; then
+  printf '\n\033[1;33m==> nginx config has changed in the repo. To apply it:\033[0m\n'
+  printf '    sudo cp %s/deploy/nginx.conf /etc/nginx/sites-available/jadvix\n' "$APP_DIR"
+  printf '    sudo nginx -t && sudo systemctl reload nginx\n'
+fi
+
 say "Reloading both"
 # `reload` not `restart`: PM2 starts the replacement before retiring the old
 # process, so there is no window where nginx has nothing to proxy to.

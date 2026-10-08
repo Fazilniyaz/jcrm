@@ -296,6 +296,53 @@ into the bundle, so a reload alone does nothing:
 cd ~/jcrm && npm run build && pm2 reload jadvix-app
 ```
 
+**After an `nginx.conf` change:** the site file is COPIED into `/etc`, not
+symlinked — it is root-owned, and a symlink into a home directory would let a
+`git pull` rewrite the web server's config without anyone deciding to. The
+script notices the drift and prints these:
+
+```bash
+sudo cp ~/jcrm/deploy/nginx.conf /etc/nginx/sites-available/jadvix
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+**After an `ecosystem.config.js` change:** PM2 caches the environment it
+started with, so `reload` does not re-read the file:
+
+```bash
+pm2 delete jadvix-api jadvix-app
+pm2 start ~/jcrm/deploy/ecosystem.config.js
+pm2 save
+```
+
+### This release in particular
+
+Two of the three above apply, so after `update.sh`:
+
+```bash
+cd ~/jcrmbe && npx prisma db push && pm2 reload jadvix-api
+sudo cp ~/jcrm/deploy/nginx.conf /etc/nginx/sites-available/jadvix
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+`db push` creates `DailyReport` — a new collection with a unique index on
+(userId, date). The Reports module answers 500 until it exists.
+
+The nginx copy adds the `/socket.io/` block. Without it nginx answers the
+WebSocket upgrade with a 400 and socket.io falls back to long polling: the app
+still works, it just holds a request open per tab instead of a socket, and
+changes arrive on the next poll rather than in about a second.
+
+Check the handshake reaches the API:
+
+```bash
+curl -i "http://<ELASTIC_IP>/socket.io/?EIO=4&transport=polling" | head -3
+```
+
+`200` with a body starting `0{"sid":` is right. `400` means the location block
+is missing; `502` means the API is not running. In the browser, DevTools →
+Network → WS should show one `/socket.io/` connection per tab, staying open.
+
 ### Day-to-day
 
 ```bash
