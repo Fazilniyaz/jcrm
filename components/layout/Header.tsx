@@ -11,7 +11,6 @@ import {
   Moon,
   Sun,
   ChevronDown,
-  LogOut,
   Check,
   Building2,
 } from "lucide-react";
@@ -19,6 +18,7 @@ import Link from "next/link";
 import { portalsByGroup } from "@/lib/portals";
 import { useStore } from "@/lib/store/StoreProvider";
 import { StatusControl } from "./StatusControl";
+import ProfilePanel from "./ProfilePanel";
 
 /** A 34px square icon control — the bar's one button shape (from the Ropix skin). */
 function BarButton({
@@ -82,7 +82,12 @@ export default function Header({
   onSwitchPortal: (slug: string) => void;
   onLogout: () => void;
 }) {
-  const [menu, setMenu] = useState<null | "portal" | "user">(null);
+  /*
+   * Only the portal switcher is a menu here now. The profile panel owns its
+   * own open state because it opens on hover and pins itself while it is being
+   * typed into — rules this shared `menu` could not express.
+   */
+  const [menu, setMenu] = useState<null | "portal">(null);
   const wrap = useRef<HTMLDivElement>(null);
 
   // close either dropdown on an outside click or Escape
@@ -101,13 +106,6 @@ export default function Header({
       document.removeEventListener("keydown", onKey);
     };
   }, [menu]);
-
-  const initials =
-    user
-      .split(" ")
-      .map((w) => w[0])
-      .slice(0, 2)
-      .join("") || "?";
 
   return (
     <header className="sticky top-0 z-20 flex h-header items-center gap-2.5 border-b border-(--header-border-color) bg-header px-3 sm:px-4">
@@ -220,65 +218,11 @@ export default function Header({
 
         <span className="mx-0.5 hidden h-6 w-px bg-line sm:block" aria-hidden />
 
-        {/* user menu */}
-        <div className="relative">
-          <button
-            onClick={() => setMenu((m) => (m === "user" ? null : "user"))}
-            aria-expanded={menu === "user"}
-            aria-haspopup="menu"
-            className="flex items-center gap-2 rounded-card py-1 ps-1 pe-1.5 transition-colors hover:bg-hover"
-          >
-            <span className="pk-hero inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[0.75rem] font-semibold">
-              {initials}
-            </span>
-            <span className="hidden text-left leading-tight lg:block">
-              <span className="block max-w-[9rem] truncate text-[0.8125rem] font-semibold text-heading">
-                {user}
-              </span>
-              <span className="block max-w-[9rem] truncate text-[0.6875rem] text-muted">
-                {role}
-              </span>
-            </span>
-            <ChevronDown size={14} className="hidden text-muted lg:block" />
-          </button>
-
-          {menu === "user" && (
-            <div
-              role="menu"
-              className="pk-menu absolute right-0 z-30 mt-1.5 w-60 overflow-hidden rounded-card border border-line bg-card shadow-pop"
-            >
-              <div className="pk-hero flex items-center gap-3 px-4 py-4">
-                <span
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[0.875rem] font-bold"
-                  style={{ background: "rgba(255,255,255,0.18)", color: "var(--on-hero)" }}
-                  aria-hidden
-                >
-                  {initials}
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-[0.875rem] font-semibold">{user}</span>
-                  <span className="block truncate text-[0.75rem]">{email ?? role}</span>
-                </span>
-              </div>
-              <div className="p-1.5">
-                <button
-                  role="menuitem"
-                  onClick={onLogout}
-                  className="flex w-full items-center gap-3 rounded-card px-2.5 py-2 text-left text-[0.8125rem] font-medium transition-colors hover:bg-hover"
-                  style={{ color: "rgb(var(--danger-rgb))" }}
-                >
-                  <span
-                    className="flex h-7 w-7 items-center justify-center rounded-card"
-                    style={{ background: "var(--danger-soft)" }}
-                  >
-                    <LogOut size={14} />
-                  </span>
-                  Sign out
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+        {/*
+         * Everything that used to be the My Profile module, on the avatar.
+         * Hover to peek, click to pin — see ProfilePanel.
+         */}
+        <ProfilePanel user={user} role={role} email={email} onLogout={onLogout} />
       </div>
     </header>
   );

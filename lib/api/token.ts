@@ -16,12 +16,31 @@
 
 let accessToken: string | null = null;
 
+/*
+ * Who else cares when the token changes.
+ *
+ * The realtime socket authenticates with this same token at handshake time,
+ * so it has to be told when the token is rotated or dropped — otherwise a
+ * socket stays subscribed on a credential that has expired, and a sign-out
+ * leaves it connected as the person who just left.
+ */
+type Listener = (token: string | null) => void;
+const listeners = new Set<Listener>();
+
 export function getAccessToken(): string | null {
   return accessToken;
 }
 
 export function setAccessToken(token: string | null) {
+  if (accessToken === token) return;
   accessToken = token;
+  for (const listener of listeners) listener(token);
+}
+
+/** Subscribe to rotations. Returns the unsubscribe. */
+export function onAccessTokenChange(listener: Listener): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }
 
 export const API_BASE_URL = (

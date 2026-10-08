@@ -56,6 +56,7 @@ import {
   toUiTask,
 } from "@/lib/api/adapters";
 import { useSession } from "@/lib/api/session";
+import { useRealtimeConnected } from "@/lib/realtime";
 import { reportMutationError } from "@/lib/api/mutationErrors";
 import MutationErrorBanner from "@/components/layout/MutationErrorBanner";
 
@@ -96,8 +97,18 @@ function run(promise: { unwrap: () => Promise<unknown> }, what: string) {
   });
 }
 
-/** How often the shared lists re-read the server while the tab is in front. */
+/**
+ * How often the shared lists re-read the server while the tab is in front.
+ *
+ * Two intervals, because the socket changes what polling is FOR. Without it,
+ * polling is the only way this tab hears about someone else's write, so it has
+ * to be brisk. With it, a change arrives within a second and polling is a
+ * safety net for the cases the socket cannot cover — a refused upgrade, a
+ * dropped connection, an API restart — so a slow sweep is enough and the other
+ * 90% of the requests are simply not made.
+ */
 const LIVE_POLL_MS = 30_000;
+const LIVE_POLL_MS_REALTIME = 180_000;
 
 export default function ApiStoreProvider({ children }: { children: React.ReactNode }) {
   const local = useStore();
@@ -125,9 +136,11 @@ export default function ApiStoreProvider({ children }: { children: React.ReactNo
    * Thirty seconds is the compromise. The blanket API limit is 300 requests a
    * minute; five polled lists at this interval spend ten of them.
    */
+  const realtime = useRealtimeConnected();
+
   const live = {
     skip: !signedIn,
-    pollingInterval: LIVE_POLL_MS,
+    pollingInterval: realtime ? LIVE_POLL_MS_REALTIME : LIVE_POLL_MS,
     skipPollingIfUnfocused: true,
   };
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   FolderKanban,
   CircleAlert,
@@ -68,6 +69,8 @@ import {
   type ProjectStatus,
 } from "@/lib/store/types";
 import { getPortal } from "@/lib/portals";
+import { fromApiModuleSlugs } from "@/lib/modules";
+import { useSession } from "@/lib/api/session";
 import ProjectForm from "./ProjectForm";
 import PlanEditor from "./PlanEditor";
 import SecretsVault, { VaultEditor } from "./SecretsVault";
@@ -92,6 +95,24 @@ export function ProjectManagement() {
     () => visibleProjects(state, currentPortal, clientId),
     [state, currentPortal, clientId],
   );
+
+  const router = useRouter();
+  const session = useSession();
+
+  /*
+   * Clicking a row opens that project's TASKS rather than expanding it.
+   *
+   * The chevron still expands in place — see the row below, where it stops the
+   * click from reaching the row. Two gestures on one row: the arrow for "tell
+   * me about this project", the row itself for "show me the work".
+   *
+   * Guarded on access, because the row would otherwise navigate to a page that
+   * answers "this module isn't enabled for your account". Someone without
+   * Tasks keeps the old behaviour: the whole row expands.
+   */
+  const canOpenTasks =
+    session.status !== "user" ||
+    fromApiModuleSlugs(session.user.modules).includes("task-management");
 
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<ProjectStatus | "All">("All");
@@ -140,6 +161,19 @@ export function ProjectManagement() {
   }, [projects, query, status, sort, state]);
 
   if (!hydrated) return <ModuleSkeleton />;
+
+  /*
+   * Straight to the grid, filtered to this project.
+   *
+   * The filter travels in the URL rather than in a store: it survives a
+   * reload, it can be linked to from anywhere else (a dashboard tile, a
+   * notification), and the back button undoes it, which is what a person who
+   * clicked the wrong row expects. `view=grid` is the format asked for — the
+   * monday-style sheet with an add row per project.
+   */
+  const openProjectTasks = (p: Project) => {
+    router.push(`/${currentPortal}/task-management?project=${encodeURIComponent(p.id)}&view=grid`);
+  };
 
   const openCreate = () => {
     setEditing(undefined);
@@ -279,7 +313,15 @@ export function ProjectManagement() {
 
                 return (
                   <Fragment key={p.id}>
-                    <Tr expanded={expanded} onClick={() => setOpenId(expanded ? null : p.id)}>
+                    <Tr
+                      expanded={expanded}
+                      title={canOpenTasks ? `Open ${p.name} tasks` : undefined}
+                      onClick={() =>
+                        canOpenTasks
+                          ? openProjectTasks(p)
+                          : setOpenId(expanded ? null : p.id)
+                      }
+                    >
                       <Td>
                         <div className="flex items-center gap-2">
                           <button
@@ -288,6 +330,11 @@ export function ProjectManagement() {
                             aria-expanded={expanded}
                             className="shrink-0 text-muted transition-transform hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                             style={{ transform: expanded ? "rotate(90deg)" : undefined }}
+                            /* The row navigates; the arrow must not. */
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenId(expanded ? null : p.id);
+                            }}
                           >
                             <ChevronRight size={16} />
                           </button>

@@ -527,17 +527,21 @@ export function Tr({
   children,
   onClick,
   expanded,
+  title,
   className = "",
 }: {
   children: React.ReactNode;
   /** Makes the whole row a disclosure control. */
   onClick?: () => void;
   expanded?: boolean;
+  /** Tooltip, for a row whose click does something other than expand. */
+  title?: string;
   className?: string;
 }) {
   return (
     <tr
       onClick={onClick}
+      title={title}
       // A row can't be a <button>, so carry the semantics on the row itself and
       // let the caller put a real focusable control in the first cell.
       aria-expanded={onClick ? Boolean(expanded) : undefined}

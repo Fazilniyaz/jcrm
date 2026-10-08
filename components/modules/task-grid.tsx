@@ -1559,7 +1559,24 @@ type DragApi = {
   drop: (groupId: string, index: number | null) => void;
 };
 
-export function GridView({ tasks, onOpen }: { tasks: Task[]; onOpen: (t: Task) => void }) {
+export function GridView({
+  tasks,
+  onOpen,
+  onlyProjectId = null,
+}: {
+  tasks: Task[];
+  onOpen: (t: Task) => void;
+  /**
+   * Draw one project only.
+   *
+   * The grid is the one view that renders a group per project whether or not
+   * it has tasks — that is what makes it writable. So a project filter has to
+   * reach it explicitly: filtering the `tasks` prop alone would leave every
+   * other project on screen as an empty group with an add row, which is the
+   * opposite of what "show me this project's work" asked for.
+   */
+  onlyProjectId?: string | null;
+}) {
   const { state, updateTask } = useStore();
   const { visible, keys, toggle } = useVisibleColumns();
 
@@ -1591,20 +1608,24 @@ export function GridView({ tasks, onOpen }: { tasks: Task[]; onOpen: (t: Task) =
     for (const [, list] of byProject) list.sort(byOrder);
 
     const out: Group[] = state.projects
+      .filter((p) => (onlyProjectId ? p.id === onlyProjectId : true))
       .filter((p) => byProject.has(p.id))
       .map((p) => ({ id: p.id, name: p.name, code: p.code, tasks: byProject.get(p.id) ?? [] }));
 
-    const orphans = byProject.get("") ?? [];
+    // A task with no project is not part of any one project's work, so the
+    // orphan group is hidden while the screen is pinned to one.
+    const orphans = onlyProjectId ? [] : (byProject.get("") ?? []);
     if (orphans.length) out.push({ id: "", name: "No project", code: "—", tasks: orphans });
     return out;
-  }, [tasks, state.projects]);
+  }, [tasks, state.projects, onlyProjectId]);
 
   const empties = useMemo<Group[]>(
     () =>
       state.projects
+        .filter((p) => (onlyProjectId ? p.id === onlyProjectId : true))
         .filter((p) => !groups.some((g) => g.id === p.id))
         .map((p) => ({ id: p.id, name: p.name, code: p.code, tasks: [] })),
-    [state.projects, groups],
+    [state.projects, groups, onlyProjectId],
   );
 
   const all = [...groups, ...empties];

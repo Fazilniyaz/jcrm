@@ -758,3 +758,90 @@ export type ClockRoster = {
     notStarted: number;
   };
 };
+
+/* ------------------------------------------------------------ clock stats -- */
+
+export type ClockStats = {
+  user: { id: string; name: string; empId: string };
+  /** The day the numbers were asked for, in the viewer's own calendar. */
+  date: string;
+  weekStart: string;
+  monthStart: string;
+  todayMinutes: number;
+  weekMinutes: number;
+  monthMinutes: number;
+  /**
+   * Days present over days the COMPANY was open, as a percentage.
+   *
+   * Null when there is no attendance to compare with. The denominator comes
+   * from the data rather than from an assumed Monday-to-Friday — see the
+   * service comment; a six-day week would otherwise read as 120%.
+   */
+  consistency: number | null;
+  daysPresent: number;
+  daysExpected: number;
+  /** Consecutive open days worked, ending at the last one that has happened. */
+  streak: number;
+  averageMinutes: number;
+  days: { date: string; minutes: number; present: boolean }[];
+};
+
+/* ---------------------------------------------------------- daily reports -- */
+
+export type DailyReport = {
+  id: string;
+  userId: string;
+  /** The author's local calendar day, `YYYY-MM-DD`. */
+  date: string;
+  body: string;
+  headline: string | null;
+  stars: number | null;
+  ratedById: string | null;
+  ratedAt: string | null;
+  feedback: string | null;
+  createdAt: string;
+  updatedAt: string;
+  rated: boolean;
+};
+
+export type ReportSummary = {
+  submitted: number;
+  ratedDays: number;
+  awaitingRating: number;
+  stars: number;
+  average: number | null;
+  byStars: Record<string, number>;
+};
+
+export type ReportHistory = {
+  user: { id: string; name: string; empId: string; avatar: string | null; tone: string };
+  from: string;
+  to: string;
+  reports: DailyReport[];
+  /** Totals for the window on screen. */
+  summary: ReportSummary;
+  /** Totals for all time — the number an employee means by "my stars". */
+  lifetime: { stars: number; ratedDays: number; average: number | null };
+};
+
+export type ReportDayRow = {
+  user: {
+    id: string;
+    name: string;
+    empId: string;
+    email: string;
+    roles: Role[];
+    avatar: string | null;
+    tone: string;
+    currentStatus: string;
+    branch: string | null;
+  };
+  /** Null when that person has not written the day up. */
+  report: DailyReport | null;
+};
+
+export type ReportDay = {
+  date: string;
+  rows: ReportDayRow[];
+  counts: { total: number; filed: number; missing: number; unrated: number };
+};

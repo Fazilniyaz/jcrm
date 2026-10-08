@@ -23,6 +23,10 @@ import type {
   Sprint,
   SprintInput,
   MyClock,
+  ClockStats,
+  DailyReport,
+  ReportDay,
+  ReportHistory,
   Shift,
   ClockRoster,
   Notification,
@@ -229,6 +233,9 @@ export const api = createApi({
     "Sprint",
     "Clock",
     "ClockRoster",
+    "ClockStats",
+    "Report",
+    "ReportDay",
   ],
   endpoints: (build) => ({
     /* ---------------------------------------------------------- auth -- */
@@ -907,6 +914,63 @@ export const api = createApi({
       providesTags: ["ClockRoster"],
     }),
 
+    /*
+     * Hours today, this week and this month. `userId` reads someone else's,
+     * which the API allows only for a super admin — the Playground person
+     * panel and the employee's own card therefore render the same payload
+     * from the same endpoint.
+     */
+    clockStats: build.query<ClockStats, { date: string; userId?: string }>({
+      query: ({ date, userId }) =>
+        `/clock/stats?date=${encodeURIComponent(date)}${userId ? `&userId=${userId}` : ""}`,
+      transformResponse: unwrap,
+      providesTags: ["ClockStats"],
+    }),
+
+    /* ------------------------------------------------------- reports -- */
+
+    reportHistory: build.query<
+      ReportHistory,
+      { from: string; to: string; userId?: string }
+    >({
+      query: ({ from, to, userId }) =>
+        `/reports?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` +
+        (userId ? `&userId=${userId}` : ""),
+      transformResponse: unwrap,
+      providesTags: ["Report"],
+    }),
+
+    /** The super admin's grid: one day, everyone, absentees included. */
+    reportDay: build.query<
+      ReportDay,
+      { date: string; q?: string; filter?: "all" | "filed" | "missing" | "unrated" }
+    >({
+      query: ({ date, q, filter }) =>
+        `/reports/day?date=${encodeURIComponent(date)}` +
+        (q ? `&q=${encodeURIComponent(q)}` : "") +
+        (filter && filter !== "all" ? `&filter=${filter}` : ""),
+      transformResponse: unwrap,
+      providesTags: ["ReportDay"],
+    }),
+
+    saveMyReport: build.mutation<
+      DailyReport,
+      { date: string; today: string; body: string; headline?: string }
+    >({
+      query: (body) => ({ url: "/reports/me", method: "PUT", body }),
+      transformResponse: unwrap,
+      invalidatesTags: ["Report", "ReportDay"],
+    }),
+
+    rateReport: build.mutation<
+      DailyReport,
+      { id: string; stars: number; feedback?: string }
+    >({
+      query: ({ id, ...body }) => ({ url: `/reports/${id}/rate`, method: "POST", body }),
+      transformResponse: unwrap,
+      invalidatesTags: ["Report", "ReportDay", "Notification"],
+    }),
+
     /* ---------------------------------------------------- playground -- */
 
     /*
@@ -1050,6 +1114,11 @@ export const {
   useClockOutMutation,
   useToggleBreakMutation,
   useClockRosterQuery,
+  useClockStatsQuery,
+  useReportHistoryQuery,
+  useReportDayQuery,
+  useSaveMyReportMutation,
+  useRateReportMutation,
   usePlaygroundQuery,
   useModuleAccessMatrixQuery,
   useSetModuleAccessMutation,

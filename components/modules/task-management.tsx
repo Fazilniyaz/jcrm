@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
   Pencil,
@@ -133,14 +134,37 @@ const SORTS: { value: SortKey; label: string }[] = [
   { value: "status", label: "Status" },
 ];
 
+const VIEWS: readonly View[] = ["board", "table", "list", "grid", "sprints"];
+
 export function TaskManagement() {
-  const { hydrated, state, deleteTask } = useStore();
+  const { hydrated, state, deleteTask, currentPortal } = useStore();
   const tasks = useMemo(() => scopedTasks(state), [state]);
+
+  /*
+   * The URL can arrive pre-filtered.
+   *
+   * Clicking a project row in Projects lands here as
+   * ?project=<id>&view=grid, which is what makes that row mean "show me this
+   * project's work". Reading it from the URL rather than from a shared store
+   * is what lets the filter survive a reload, be linked to from anywhere, and
+   * be undone with the back button.
+   *
+   * The params SEED the state and are not the state: once here, changing the
+   * view or clearing the filter is a local interaction, and pushing a new URL
+   * for each of those would bury the way back under a dozen history entries.
+   */
+  const router = useRouter();
+  const params = useSearchParams();
+  const initialProject = params.get("project");
+  const initialView = params.get("view");
 
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<TaskStatus | "All">("All");
   const [sort, setSort] = useState<SortKey>("priority");
-  const [view, setView] = useState<View>("list");
+  const [projectId, setProjectId] = useState<string | null>(initialProject);
+  const [view, setView] = useState<View>(
+    VIEWS.includes(initialView as View) ? (initialView as View) : "list",
+  );
   /** Which of the two readings is on screen — see the switch below. */
   const [scope, setScope] = useState<"tasks" | "subtasks">("tasks");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -186,6 +210,7 @@ export function TaskManagement() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const rows = tasks.filter((t) => {
+      if (projectId && !t.projectIds.includes(projectId)) return false;
       if (status !== "All" && t.status !== status) return false;
       if (!q) return true;
       const people = employeesByIds(state, t.assignedTo)
@@ -211,7 +236,7 @@ export function TaskManagement() {
         (a, b) => taskStatusOrder(a.status) - taskStatusOrder(b.status) || a.priority - b.priority,
       );
     return sorted;
-  }, [tasks, query, status, sort, state]);
+  }, [tasks, query, status, sort, projectId, state]);
 
   if (!hydrated) return <ModuleSkeleton />;
 
@@ -234,7 +259,19 @@ export function TaskManagement() {
     setOpenSubtask(null);
   };
 
-  const filtersActive = query.trim() !== "" || status !== "All";
+  const filtersActive = query.trim() !== "" || status !== "All" || projectId !== null;
+
+  /** The project the screen is pinned to, if it still exists. */
+  const pinned = projectId ? (state.projects.find((p) => p.id === projectId) ?? null) : null;
+
+  /*
+   * Dropping the filter also drops it from the URL, or a reload would bring it
+   * straight back and the button would look broken.
+   */
+  const clearProject = () => {
+    setProjectId(null);
+    router.replace(`/${currentPortal}/task-management`);
+  };
   // In list view the panel reserves a column on lg+, so the list pads to match
   // and both stay visible. Below lg the panel overlays and no padding is added.
   const panelOpen = view === "list" && (Boolean(detail) || Boolean(openSubtask));
@@ -311,6 +348,28 @@ export function TaskManagement() {
         <SubtaskList tasks={tasks} />
       ) : (
         <>
+      {/*
+        The pin, shown only when one is set. It names the project rather than
+        saying "filtered", because the screen otherwise looks like a workspace
+        with suspiciously few tasks in it.
+      */}
+      {pinned && (
+        <div className="flex flex-wrap items-center gap-3 rounded-sm border border-primary/30 bg-primary/5 px-3 py-2">
+          <FolderKanban size={16} className="shrink-0 text-primary" />
+          <p className="min-w-0 text-[0.8125rem] text-heading">
+            Showing work on <span className="font-semibold">{pinned.name}</span>
+            <span className="ms-1.5 font-mono text-[0.6875rem] text-muted">{pinned.code}</span>
+          </p>
+          <button
+            type="button"
+            onClick={clearProject}
+            className="ms-auto rounded-sm px-2 py-1 text-[0.75rem] font-semibold text-primary transition-colors hover:bg-primary/10"
+          >
+            Show all projects
+          </button>
+        </div>
+      )}
+
       {/* toolbar */}
       <div className="flex flex-wrap items-center gap-2">
         <SearchBox
@@ -384,7 +443,7 @@ export function TaskManagement() {
       {view === "sprints" ? (
         <SprintBoard onOpen={openTaskPanel} />
       ) : view === "grid" ? (
-        <GridView tasks={filtered} onOpen={openTaskPanel} />
+        <GridView tasks={filtered} onOpen={openTaskPanel} onlyProjectId={projectId} />
       ) : filtered.length === 0 ? (
         <Card>
           <EmptyState
@@ -406,6 +465,7 @@ export function TaskManagement() {
                   onClick={() => {
                     setQuery("");
                     setStatus("All");
+                    if (projectId) clearProject();
                   }}
                 >
                   Clear filters

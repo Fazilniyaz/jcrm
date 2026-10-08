@@ -6,6 +6,7 @@ import Header from "./Header";
 import { fromApiModuleSlugs, type ModuleSlug } from "@/lib/modules";
 import { applyThemeMode, useThemeMode } from "@/lib/theme";
 import { usePresenceHeartbeat } from "@/lib/use-presence";
+import { useRealtime } from "@/lib/realtime";
 import { logout, switchPortal } from "@/lib/actions";
 import { useLogoutMutation } from "@/lib/api/api";
 import { useSession } from "@/lib/api/session";
@@ -118,18 +119,7 @@ export default function DashboardShell({
           ? EMPTY_MODULES
           : modules;
 
-  /*
-   * My Profile is always on for a signed-in account.
-   *
-   * It is the one module that is about YOU rather than the company's work: your
-   * picture, your name, your status. It gates nothing — it writes through the
-   * same /settings endpoints every account already has — so there is no version
-   * of "this person may not open their own profile" worth honouring. Listing it
-   * unconditionally also means it does not disappear just because an older API
-   * build does not know the slug yet.
-   */
-  const visibleModules: readonly ModuleSlug[] =
-    granted.length > 0 && !granted.includes("me") ? [...granted, "me"] : granted;
+  const visibleModules: readonly ModuleSlug[] = granted;
 
   /*
    * Two independent things, deliberately not merged:
@@ -149,6 +139,15 @@ export default function DashboardShell({
   // anywhere in the product is derived from. Only for a real session; a demo
   // portal has nobody to mark present.
   usePresenceHeartbeat(session.status === "user");
+
+  /*
+   * One socket per signed-in tab, held open here because this shell is the one
+   * component mounted for the whole session. It pushes cache invalidations, so
+   * another person's write lands on this screen in about a second instead of
+   * on the next poll — and it reports its own user id so this tab does not
+   * refetch twice for its own clicks.
+   */
+  useRealtime(session.status === "user", session.status === "user" ? session.user.id : undefined);
   const [, startTransition] = useTransition();
   const [apiLogout] = useLogoutMutation();
 

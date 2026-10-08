@@ -22,7 +22,6 @@ import {
   Inbox,
   Orbit,
   UsersRound,
-  UserRound,
 } from "lucide-react";
 import type { IconType } from "./ui/icon";
 
@@ -49,8 +48,7 @@ export type ModuleSlug =
   | "checklist"
   | "requests"
   | "playground"
-  | "teams"
-  | "me";
+  | "teams";
 
 export type ModuleDef = {
   slug: ModuleSlug;
@@ -211,13 +209,6 @@ export const MODULES: readonly ModuleDef[] = [
     blurb: "Profile, workspace and security preferences.",
   },
   {
-    slug: "me",
-    label: "My Profile",
-    group: "System",
-    icon: UserRound,
-    blurb: "Your picture, your name and the status everyone sees next to them.",
-  },
-  {
     slug: "teams",
     label: "Teams",
     group: "People",
@@ -252,9 +243,6 @@ export const MANDATORY_MODULES: readonly ModuleSlug[] = [
   "clock",
   "task-management",
   "notifications",
-  // Your own picture, name and status. Never grantable — withholding it would
-  // mean an account that cannot change its own profile.
-  "me",
 ];
 
 /**
