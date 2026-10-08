@@ -68,13 +68,49 @@ function refresh(): Promise<boolean> {
 /** Endpoints where a 401 is the answer, not a reason to re-authenticate. */
 const NO_RETRY = ["/auth/login", "/auth/master/login", "/auth/refresh", "/auth/logout"];
 
+/*
+ * The breaker, for when the API is simply not there.
+ *
+ * An unreachable API fails in about a millisecond — the connection is refused
+ * rather than timing out — and anything that reacts to the failure by asking
+ * again turns that into a request per frame. Measured at ~57 a second with the
+ * backend stopped, which is the worst possible behaviour at the worst possible
+ * moment: the API that just restarted is met by every open tab hammering it,
+ * and the rate limiter answers 429 to the requests that would have worked.
+ *
+ * So after a transport failure, every request is refused locally for a second
+ * without touching the network. The cost is that recovery can take up to a
+ * second longer than it would have; the benefit is that it is a request a
+ * second instead of sixty.
+ *
+ * This is deliberately about TRANSPORT failures only. A 500 is the API
+ * answering, and the caller is entitled to ask again.
+ */
+const OFFLINE_COOLDOWN_MS = 1_000;
+let lastTransportFailureAt = 0;
+
+const OFFLINE_ERROR: FetchBaseQueryError = {
+  status: "FETCH_ERROR",
+  error: "The API is unreachable.",
+};
+
 export const baseQueryWithReauth: BaseQueryFn<
   string | FetchArgs,
   unknown,
   FetchBaseQueryError
 > = async (args, api, extraOptions) => {
   const url = typeof args === "string" ? args : args.url;
+
+  if (Date.now() - lastTransportFailureAt < OFFLINE_COOLDOWN_MS) return { error: OFFLINE_ERROR };
+
   let result = await rawBaseQuery(args, api, extraOptions);
+
+  if (result.error?.status === "FETCH_ERROR") {
+    lastTransportFailureAt = Date.now();
+    return result;
+  }
+  // Anything else means the API answered, so the breaker is closed again.
+  lastTransportFailureAt = 0;
 
   if (result.error?.status === 401 && !NO_RETRY.some((path) => url.startsWith(path))) {
     if (await refresh()) {
